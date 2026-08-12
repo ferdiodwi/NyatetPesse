@@ -3,7 +3,8 @@ import 'package:nyatet_pesse/features/dashboard/presentation/widgets/account_hor
 import 'package:nyatet_pesse/features/dashboard/presentation/widgets/ai_detection_banner.dart';
 import 'package:nyatet_pesse/features/dashboard/presentation/widgets/balance_card.dart';
 import 'package:nyatet_pesse/features/dashboard/presentation/widgets/recent_transactions_list.dart';
-import 'package:nyatet_pesse/features/categories/presentation/screens/categories_screen.dart';
+import 'package:nyatet_pesse/features/transactions/presentation/screens/inbox_screen.dart';
+import 'package:nyatet_pesse/features/settings/presentation/screens/settings_screen.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -48,12 +49,23 @@ class HomeScreen extends StatelessWidget {
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.settings),
-            tooltip: 'Pengaturan Kategori',
+            icon: const Icon(Icons.notifications_active_outlined),
+            tooltip: 'Transaction Inbox',
             onPressed: () {
               Navigator.push(
                 context,
-                MaterialPageRoute(builder: (context) => const CategoriesScreen()),
+                MaterialPageRoute(builder: (context) => const InboxScreen()),
+              );
+            },
+            color: Theme.of(context).colorScheme.onSurface,
+          ),
+          IconButton(
+            icon: const Icon(Icons.settings),
+            tooltip: 'Pengaturan',
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const SettingsScreen()),
               );
             },
             color: Theme.of(context).colorScheme.onSurface,

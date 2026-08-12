@@ -1297,79 +1297,86 @@ MVP dianggap berhasil apabila:
 
 ## 19. Prioritas Pengembangan
 
-### Phase 1 — Database & UI Dasar (MVP Foundation)
+> **Catatan Revisi (12 Agustus 2026):** Urutan phase direvisi agar fitur yang membutuhkan **model AI buatan sendiri (TFLite)** dikerjakan paling terakhir. Fitur-fitur yang menggunakan rule-based, regex, Google ML Kit OCR (on-device, bukan model kita), dan pure UI tetap dikerjakan normal sesuai urutan. Frontend/UI untuk fitur AI tetap bisa dibuat lebih awal sebagai placeholder.
+
+### Phase 1 — Database & UI Dasar (MVP Foundation) ✅ SELESAI
 > Target: Aplikasi dapat digunakan untuk input manual dan melihat ringkasan keuangan.
 
-| ID | Fitur |
-|---|---|
-| P1-01 | Setup project Flutter + Kotlin |
-| P1-02 | Skema database (Drift/SQLite) |
-| P1-03 | Manajemen akun dana (FR-01, FR-02) |
-| P1-04 | Manajemen kategori (FR-07) |
-| P1-05 | Input transaksi manual (FR-06) |
-| P1-06 | Riwayat transaksi + filter (FR-09) |
-| P1-07 | Dashboard ringkasan (FR-34, FR-35) |
-| P1-08 | Autentikasi PIN (FR-43) |
+| ID | Fitur | Status |
+|---|---|---|
+| P1-01 | Setup project Flutter + Kotlin | ✅ Done |
+| P1-02 | Skema database (Drift/SQLite) | ✅ Done |
+| P1-03 | Manajemen akun dana (FR-01, FR-02) | ✅ Done |
+| P1-04 | Manajemen kategori (FR-07) | ✅ Done |
+| P1-05 | Input transaksi manual (FR-06) | ✅ Done |
+| P1-06 | Riwayat transaksi + filter (FR-09) | ✅ Done |
+| P1-07 | Dashboard ringkasan (FR-34, FR-35) | ✅ Done |
+| P1-08 | Autentikasi PIN (FR-43) | ✅ Done |
 
 ### Phase 2 — Otomatisasi Notifikasi
-> Target: Transaksi dari m-banking/e-wallet terdeteksi otomatis.
+> Target: Transaksi dari m-banking/e-wallet terdeteksi otomatis melalui notifikasi push.
+> Tidak membutuhkan model AI — menggunakan Kotlin native + Regex rule-based.
 
 | ID | Fitur |
 |---|---|
 | P2-01 | NotificationListenerService (FR-10, FR-11, FR-13) |
-| P2-02 | Parser regex untuk notifikasi populer |
+| P2-02 | Parser regex untuk notifikasi populer (BCA, Mandiri, DANA, OVO, GoPay, dll) |
 | P2-03 | Duplicate detection (FR-30, FR-31) |
-| P2-04 | Transaction Inbox (FR-27, FR-28, FR-29) |
+| P2-04 | Transaction Inbox UI (FR-27, FR-28, FR-29) — kategori manual/placeholder sampai Phase 6 |
 | P2-05 | Pengaturan sumber notifikasi (FR-50) |
 | P2-06 | Failure handling & fallback (FR-14) |
 
 ### Phase 3 — OCR & Pemrosesan Gambar
 > Target: Transaksi dari foto struk dan screenshot dapat diekstrak otomatis.
+> Menggunakan Google ML Kit OCR (on-device, bukan model kita — tidak perlu training).
 
 | ID | Fitur |
 |---|---|
-| P3-01 | Integrasi Google ML Kit OCR |
-| P3-02 | Parser struk fisik (FR-17, FR-18) |
-| P3-03 | Parser screenshot bukti pembayaran (FR-19, FR-20) |
+| P3-01 | Integrasi Google ML Kit OCR (on-device, offline) |
+| P3-02 | Parser struk fisik — rule-based (FR-17, FR-18) |
+| P3-03 | Parser screenshot bukti pembayaran — rule-based (FR-19, FR-20) |
 | P3-04 | Lampiran gambar pada transaksi (FR-15, FR-16) |
+| P3-05 | UI Confidence Score & threshold (FR-25) — frontend placeholder, logic AI menyusul di Phase 6 |
 
-### Phase 4 — Local AI Model
-> Target: Transaksi diklasifikasikan otomatis menggunakan model lokal.
-
-| ID | Fitur |
-|---|---|
-| P4-01 | Pengumpulan dan labeling dataset |
-| P4-02 | Training dan evaluasi model klasifikasi baseline |
-| P4-03 | Export model ke format TFLite |
-| P4-04 | Integrasi TFLite ke Flutter |
-| P4-05 | Confidence score & threshold (FR-25) |
-| P4-06 | Offline inference end-to-end |
-
-### Phase 5 — Privacy & Security
+### Phase 4 — Privacy & Security
 > Target: Data pengguna terlindungi sesuai prinsip privacy-first.
 
 | ID | Fitur |
 |---|---|
-| P5-01 | App lock (PIN + biometrik) (FR-43) |
-| P5-02 | Android Keystore integration |
-| P5-03 | Database encryption (FR-44) |
-| P5-04 | Private image storage (FR-44) |
-| P5-05 | Encrypted backup (FR-47) |
+| P4-01 | App lock (PIN + biometrik) (FR-43) |
+| P4-02 | Android Keystore integration |
+| P4-03 | Database encryption (FR-44) |
+| P4-04 | Private image storage (FR-44) |
+| P4-05 | Encrypted backup (FR-47) |
 
-### Phase 6 — Financial Management & Intelligence
+### Phase 5 — Financial Management & Intelligence
 > Target: Aplikasi menjadi alat manajemen keuangan lengkap.
 
 | ID | Fitur |
 |---|---|
-| P6-01 | Budget per kategori (FR-39, FR-40) |
-| P6-02 | Statistik & laporan lengkap (FR-36, FR-37, FR-38) |
-| P6-03 | Rekonsiliasi saldo (FR-04) |
-| P6-04 | Recurring transaction (FR-41) |
-| P6-05 | Export/Import CSV & JSON (FR-46, FR-48) |
-| P6-06 | Learning dari koreksi pengguna (FR-26) |
-| P6-07 | Dark mode & personalisasi (FR-49) |
+| P5-01 | Budget per kategori (FR-39, FR-40) |
+| P5-02 | Statistik & laporan lengkap (FR-36, FR-37, FR-38) |
+| P5-03 | Rekonsiliasi saldo (FR-04) |
+| P5-04 | Recurring transaction (FR-41) |
+| P5-05 | Export/Import CSV & JSON (FR-46, FR-48) |
+| P5-06 | Dark mode & personalisasi (FR-49) |
+
+### Phase 6 — Local AI Model *(Terakhir)*
+> Target: Transaksi diklasifikasikan otomatis menggunakan model lokal TFLite.
+> **Dikerjakan terakhir** setelah data transaksi dari Phase 1–5 cukup untuk dataset labeling.
+> Frontend UI confidence score sudah tersedia sejak Phase 3 sebagai placeholder.
+
+| ID | Fitur | Catatan |
+|---|---|---|
+| P6-01 | Pengumpulan dan labeling dataset | Butuh data dari Phase 1–5 |
+| P6-02 | Training & evaluasi model klasifikasi baseline (Python/scikit-learn) | Backend only |
+| P6-03 | Export model ke format TFLite | Backend only |
+| P6-04 | Integrasi TFLite ke Flutter | Connect ke UI yang sudah ada |
+| P6-05 | Offline inference end-to-end (FR-24, FR-25, FR-26) | Connect ke Transaction Inbox |
+| P6-06 | Learning dari koreksi pengguna — simpan ke `correction_logs` (FR-26) | DB sudah siap, model menyusul |
 
 ---
+
 
 ## 20. Rekomendasi Teknologi
 

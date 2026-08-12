@@ -5,7 +5,18 @@ import 'package:nyatet_pesse/data/database/app_database.dart';
 import 'package:nyatet_pesse/features/transactions/presentation/providers/add_transaction_controller.dart';
 
 class AddTransactionScreen extends ConsumerStatefulWidget {
-  const AddTransactionScreen({super.key});
+  final double? initialAmount;
+  final String? initialType;
+  final String? initialNote;
+  final VoidCallback? onSaved;
+
+  const AddTransactionScreen({
+    super.key,
+    this.initialAmount,
+    this.initialType,
+    this.initialNote,
+    this.onSaved,
+  });
 
   @override
   ConsumerState<AddTransactionScreen> createState() => _AddTransactionScreenState();
@@ -15,6 +26,24 @@ class _AddTransactionScreenState extends ConsumerState<AddTransactionScreen> {
   final TextEditingController _amountController = TextEditingController();
   final TextEditingController _merchantController = TextEditingController();
   final TextEditingController _noteController = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.initialAmount != null) {
+      // Remove decimals for display if they are zero
+      _amountController.text = widget.initialAmount! % 1 == 0 
+          ? widget.initialAmount!.toInt().toString() 
+          : widget.initialAmount!.toString();
+    }
+    if (widget.initialNote != null) {
+      _noteController.text = widget.initialNote!;
+    }
+    
+    if (widget.initialType != null) {
+       Future.microtask(() => ref.read(transactionTypeProvider.notifier).state = widget.initialType!);
+    }
+  }
 
   @override
   void dispose() {
@@ -440,6 +469,9 @@ class _AddTransactionScreenState extends ConsumerState<AddTransactionScreen> {
           );
           
           if (success && mounted) {
+             if (widget.onSaved != null) {
+               widget.onSaved!();
+             }
              Navigator.pop(context);
           } else if (mounted) {
              final err = ref.read(addTransactionControllerProvider).error;

@@ -17,7 +17,7 @@ class _MainScreenState extends State<MainScreen> {
   final List<Widget> _pages = [
     const HomeScreen(),
     const HistoryScreen(),
-    const Center(child: Text('Scan')),
+    const Center(child: Text('Scan QR/Receipt')),
     const AccountsScreen(), // Budget/Accounts Tab
     const Center(child: Text('Stats')),
   ];
