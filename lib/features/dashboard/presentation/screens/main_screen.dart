@@ -3,6 +3,7 @@ import 'package:nyatet_pesse/features/dashboard/presentation/screens/home_screen
 import 'package:nyatet_pesse/features/transactions/presentation/screens/add_transaction_screen.dart';
 import 'package:nyatet_pesse/features/accounts/presentation/screens/accounts_screen.dart';
 import 'package:nyatet_pesse/features/transactions/presentation/screens/history_screen.dart';
+import 'package:nyatet_pesse/features/transactions/presentation/screens/scanner_screen.dart';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
@@ -17,7 +18,7 @@ class _MainScreenState extends State<MainScreen> {
   final List<Widget> _pages = [
     const HomeScreen(),
     const HistoryScreen(),
-    const Center(child: Text('Scan QR/Receipt')),
+    const ScannerScreen(),
     const AccountsScreen(), // Budget/Accounts Tab
     const Center(child: Text('Stats')),
   ];

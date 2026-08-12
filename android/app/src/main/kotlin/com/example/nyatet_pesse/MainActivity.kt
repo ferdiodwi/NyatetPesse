@@ -70,6 +70,15 @@ class MainActivity : FlutterActivity() {
         )
     }
 
+    override fun onDestroy() {
+        super.onDestroy()
+        try {
+            unregisterReceiver(notificationReceiver)
+        } catch (e: Exception) {
+            // Ignore if already unregistered
+        }
+    }
+
     private fun isNotificationServiceEnabled(): Boolean {
         val packageNames = NotificationManagerCompat.getEnabledListenerPackages(this)
         return packageNames.contains(packageName)
