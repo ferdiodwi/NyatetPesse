@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+
+<html class="light" lang="id"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>AI Transaction Result</title>
+<!-- Material Symbols -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<!-- Tailwind Configuration -->
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "inverse-surface": "#2e3132",
+                        "tertiary-fixed": "#ffdad6",
+                        "tertiary-container": "#670007",
+                        "outline-variant": "#c6c5d4",
+                        "surface-dim": "#d9dadb",
+                        "on-surface-variant": "#454652",
+                        "surface-container-high": "#e7e8e9",
+                        "secondary": "#1b6d24",
+                        "primary": "#000666",
+                        "tertiary-fixed-dim": "#ffb4ac",
+                        "primary-fixed-dim": "#bdc2ff",
+                        "surface": "#f8f9fa",
+                        "on-background": "#191c1d",
+                        "error": "#ba1a1a",
+                        "tertiary": "#400003",
+                        "on-tertiary-fixed": "#410003",
+                        "surface-tint": "#4c56af",
+                        "surface-bright": "#f8f9fa",
+                        "on-error-container": "#93000a",
+                        "on-primary-fixed": "#000767",
+                        "primary-container": "#1a237e",
+                        "error-container": "#ffdad6",
+                        "outline": "#767683",
+                        "secondary-fixed-dim": "#88d982",
+                        "inverse-on-surface": "#f0f1f2",
+                        "inverse-primary": "#bdc2ff",
+                        "on-tertiary": "#ffffff",
+                        "on-primary-fixed-variant": "#343d96",
+                        "background": "#f8f9fa",
+                        "on-tertiary-container": "#ff635a",
+                        "primary-fixed": "#e0e0ff",
+                        "secondary-container": "#a0f399",
+                        "on-secondary-container": "#217128",
+                        "on-secondary-fixed": "#002204",
+                        "surface-container-highest": "#e1e3e4",
+                        "on-secondary-fixed-variant": "#005312",
+                        "on-error": "#ffffff",
+                        "on-tertiary-fixed-variant": "#93000e",
+                        "on-secondary": "#ffffff",
+                        "surface-container": "#edeeef",
+                        "on-surface": "#191c1d",
+                        "secondary-fixed": "#a3f69c",
+                        "surface-variant": "#e1e3e4",
+                        "on-primary": "#ffffff",
+                        "surface-container-lowest": "#ffffff",
+                        "on-primary-container": "#8690ee",
+                        "surface-container-low": "#f3f4f5"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "stack-md": "1rem",
+                        "stack-sm": "0.5rem",
+                        "margin-mobile": "1.25rem",
+                        "stack-lg": "1.5rem",
+                        "gutter": "1rem"
+                    },
+                    "fontFamily": {
+                        "body-md": ["Inter", "sans-serif"],
+                        "headline-lg": ["Inter", "sans-serif"],
+                        "body-lg": ["Inter", "sans-serif"],
+                        "headline-md": ["Inter", "sans-serif"],
+                        "display-currency": ["Inter", "sans-serif"],
+                        "label-sm": ["Inter", "sans-serif"]
+                    },
+                    "fontSize": {
+                        "body-md": ["14px", { "lineHeight": "20px", "fontWeight": "400" }],
+                        "headline-lg": ["24px", { "lineHeight": "32px", "fontWeight": "600" }],
+                        "body-lg": ["16px", { "lineHeight": "24px", "fontWeight": "400" }],
+                        "headline-md": ["20px", { "lineHeight": "28px", "fontWeight": "600" }],
+                        "display-currency": ["32px", { "lineHeight": "40px", "letterSpacing": "-0.02em", "fontWeight": "700" }],
+                        "label-sm": ["12px", { "lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "500" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        
+        .hide-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .hide-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background text-on-background font-body-md antialiased min-h-screen flex justify-center">
+<!-- Mobile Container (Max Width 420px for realistic app view) -->
+<main class="w-full max-w-[420px] min-h-screen bg-surface flex flex-col relative shadow-sm border-x border-outline-variant/30">
+<!-- Task-Focused Header (Suppresses Global Shell per rules) -->
+<header class="sticky top-0 z-40 bg-surface/90 backdrop-blur-md px-margin-mobile py-stack-md flex items-center gap-4">
+<button aria-label="Kembali" class="text-on-surface hover:bg-surface-container rounded-full p-2 -ml-2 transition-colors">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 0;">arrow_back</span>
+</button>
+<h1 class="font-headline-md text-headline-md text-on-surface flex-1">Transaksi Terdeteksi</h1>
+</header>
+<!-- Scrollable Content -->
+<div class="flex-1 overflow-y-auto hide-scrollbar px-margin-mobile pb-32 pt-stack-sm flex flex-col gap-stack-lg">
+<!-- AI Confidence Indicator -->
+<div class="bg-secondary-container/30 border border-secondary/20 rounded-xl p-4 flex items-start gap-3">
+<div class="bg-secondary text-on-secondary rounded-full p-1.5 flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined text-[18px]" style="font-variation-settings: 'FILL' 1;">magic_button</span>
+</div>
+<div class="flex flex-col">
+<span class="font-label-sm text-label-sm text-on-secondary-container">Keyakinan AI 96%</span>
+<span class="font-body-md text-body-md text-on-surface-variant mt-0.5">Diproses lokal di perangkat</span>
+</div>
+<span class="material-symbols-outlined text-secondary ml-auto" style="font-variation-settings: 'FILL' 1;">check_circle</span>
+</div>
+<!-- Main Data Card -->
+<section class="bg-surface-container-lowest rounded-xl border border-outline-variant overflow-hidden shadow-[0px_4px_12px_rgba(0,0,0,0.02)]">
+<!-- Receipt Thumbnail Area -->
+<div class="h-32 w-full bg-surface-container-low relative overflow-hidden group">
+<div class="absolute inset-0 bg-cover bg-center opacity-80 mix-blend-multiply" data-alt="A clean, modern, top-down photograph of a simple cafe receipt on a minimalist light grey desk. The receipt is neatly printed with black ink on white thermal paper. Soft, diffused overhead lighting creates a bright, high-key light-mode aesthetic, emphasizing clarity and precision. No clutter, highly professional." style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuCGl153iuM2VuzjQ63sA2jkNk0Koqh_fDpAK-19OPwdTUDAxI1UPMD6AMDKKJegi8R6uh-FWONlb0HSDORoBsr0HxZ8OeAkEeuaaIurHgpwZKXck-YUNAc3EI3x3rjVSOVh54ELNNMWDEAzuKsWrVHSGzAQ3LQSGEosSh6v93Atl72DDgOu6kKkt6Lfb4GnrIIy9pOglsncUUUsst6Tfpf8-_9WJ09LeVmHzhJNbq4fFd4_jRefZaV3')"></div>
+<div class="absolute inset-0 bg-gradient-to-t from-surface-container-lowest via-transparent to-transparent"></div>
+<button class="absolute top-3 right-3 bg-surface/80 backdrop-blur-sm rounded-full p-1.5 text-on-surface-variant hover:text-on-surface shadow-sm transition-colors">
+<span class="material-symbols-outlined text-[18px]" style="font-variation-settings: 'FILL' 0;">fullscreen</span>
+</button>
+</div>
+<div class="p-4 flex flex-col gap-stack-lg">
+<!-- Amount Highlight -->
+<div class="flex flex-col items-center text-center pb-stack-md border-b border-outline-variant/50">
+<span class="font-body-md text-body-md text-on-surface-variant mb-1">Total Pengeluaran</span>
+<h2 class="font-display-currency text-display-currency text-on-background">Rp35.000</h2>
+</div>
+<!-- Extracted Fields Grid -->
+<div class="flex flex-col gap-stack-md">
+<!-- Merchant -->
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded-full bg-surface-container flex items-center justify-center text-on-surface-variant shrink-0">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 0;">storefront</span>
+</div>
+<div class="flex flex-col flex-1">
+<span class="font-label-sm text-label-sm text-outline">Merchant</span>
+<span class="font-body-lg text-body-lg text-on-surface font-medium">KOPI SENJA</span>
+</div>
+</div>
+<!-- Category -->
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded-full bg-surface-container flex items-center justify-center text-on-surface-variant shrink-0">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 0;">restaurant</span>
+</div>
+<div class="flex flex-col flex-1">
+<span class="font-label-sm text-label-sm text-outline">Category</span>
+<div class="mt-1 flex">
+<span class="bg-surface-variant text-on-surface-variant font-label-sm text-label-sm px-3 py-1 rounded-full">Makanan &amp; Minuman</span>
+</div>
+</div>
+</div>
+<!-- Date & Source Row -->
+<div class="flex gap-4 pt-2">
+<div class="flex-1 flex flex-col gap-1 border-r border-outline-variant/30 pr-4">
+<span class="font-label-sm text-label-sm text-outline flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px]">calendar_today</span> Date
+                                </span>
+<span class="font-body-md text-body-md text-on-surface">12 Agu 2026</span>
+</div>
+<div class="flex-1 flex flex-col gap-1">
+<span class="font-label-sm text-label-sm text-outline flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px]">account_balance_wallet</span> Source
+                                </span>
+<span class="font-body-md text-body-md text-on-surface">DANA</span>
+</div>
+</div>
+<!-- Type -->
+<div class="flex flex-col gap-1 pt-2">
+<span class="font-label-sm text-label-sm text-outline flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px]">swap_vert</span> Type
+                            </span>
+<span class="font-body-md text-body-md text-on-surface">Pengeluaran</span>
+</div>
+</div>
+</div>
+</section>
+</div>
+<!-- Fixed Bottom Action Area -->
+<div class="absolute bottom-0 left-0 w-full bg-surface border-t border-outline-variant/50 p-margin-mobile flex flex-col gap-3 pb-8">
+<button class="w-full bg-primary-container text-on-primary font-headline-md text-headline-md py-3.5 rounded-full hover:bg-primary-container/90 transition-colors shadow-sm">
+                Simpan Transaksi
+            </button>
+<button class="w-full bg-transparent border border-primary-container text-primary-container font-headline-md text-headline-md py-3 rounded-full hover:bg-surface-container transition-colors">
+                Edit
+            </button>
+</div>
+</main>
+</body></html>

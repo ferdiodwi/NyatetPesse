@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+
+<html class="light" lang="id"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Onboarding - FinTrack</title>
+<!-- Material Symbols -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<!-- Tailwind Configuration -->
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                            "inverse-surface": "#2e3132",
+                            "tertiary-fixed": "#ffdad6",
+                            "tertiary-container": "#670007",
+                            "outline-variant": "#c6c5d4",
+                            "surface-dim": "#d9dadb",
+                            "on-surface-variant": "#454652",
+                            "surface-container-high": "#e7e8e9",
+                            "secondary": "#1b6d24",
+                            "primary": "#000666",
+                            "tertiary-fixed-dim": "#ffb4ac",
+                            "primary-fixed-dim": "#bdc2ff",
+                            "surface": "#f8f9fa",
+                            "on-background": "#191c1d",
+                            "error": "#ba1a1a",
+                            "tertiary": "#400003",
+                            "on-tertiary-fixed": "#410003",
+                            "surface-tint": "#4c56af",
+                            "surface-bright": "#f8f9fa",
+                            "on-error-container": "#93000a",
+                            "on-primary-fixed": "#000767",
+                            "primary-container": "#1a237e",
+                            "error-container": "#ffdad6",
+                            "outline": "#767683",
+                            "secondary-fixed-dim": "#88d982",
+                            "inverse-on-surface": "#f0f1f2",
+                            "inverse-primary": "#bdc2ff",
+                            "on-tertiary": "#ffffff",
+                            "on-primary-fixed-variant": "#343d96",
+                            "background": "#f8f9fa",
+                            "on-tertiary-container": "#ff635a",
+                            "primary-fixed": "#e0e0ff",
+                            "secondary-container": "#a0f399",
+                            "on-secondary-container": "#217128",
+                            "on-secondary-fixed": "#002204",
+                            "surface-container-highest": "#e1e3e4",
+                            "on-secondary-fixed-variant": "#005312",
+                            "on-error": "#ffffff",
+                            "on-tertiary-fixed-variant": "#93000e",
+                            "on-secondary": "#ffffff",
+                            "surface-container": "#edeeef",
+                            "on-surface": "#191c1d",
+                            "secondary-fixed": "#a3f69c",
+                            "surface-variant": "#e1e3e4",
+                            "on-primary": "#ffffff",
+                            "surface-container-lowest": "#ffffff",
+                            "on-primary-container": "#8690ee",
+                            "surface-container-low": "#f3f4f5"
+                    },
+                    "borderRadius": {
+                            "DEFAULT": "0.25rem",
+                            "lg": "0.5rem",
+                            "xl": "0.75rem",
+                            "full": "9999px"
+                    },
+                    "spacing": {
+                            "stack-md": "1rem",
+                            "stack-sm": "0.5rem",
+                            "margin-mobile": "1.25rem",
+                            "stack-lg": "1.5rem",
+                            "gutter": "1rem"
+                    },
+                    "fontFamily": {
+                            "body-md": ["Inter"],
+                            "headline-lg": ["Inter"],
+                            "body-lg": ["Inter"],
+                            "headline-md": ["Inter"],
+                            "display-currency": ["Inter"],
+                            "label-sm": ["Inter"]
+                    },
+                    "fontSize": {
+                            "body-md": ["14px", {"lineHeight": "20px", "fontWeight": "400"}],
+                            "headline-lg": ["24px", {"lineHeight": "32px", "fontWeight": "600"}],
+                            "body-lg": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                            "headline-md": ["20px", {"lineHeight": "28px", "fontWeight": "600"}],
+                            "display-currency": ["32px", {"lineHeight": "40px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                            "label-sm": ["12px", {"lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "500"}]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        
+        .hide-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .hide-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+        
+        /* Smooth transition for carousel */
+        .carousel-track {
+            transition: transform 0.5s cubic-bezier(0.4, 0.0, 0.2, 1);
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background text-on-background h-screen w-full flex flex-col overflow-hidden font-body-md antialiased selection:bg-primary-container selection:text-on-primary">
+<!-- Top Action (Skip) -->
+<div class="w-full flex justify-end px-margin-mobile py-stack-md z-10 absolute top-0">
+<button class="text-body-md font-body-md text-outline hover:text-on-surface transition-colors" id="skipBtn">Lewati</button>
+</div>
+<!-- Main Carousel Area -->
+<main class="flex-1 w-full relative overflow-hidden flex flex-col">
+<!-- Track -->
+<div class="carousel-track flex w-[300%] h-full" id="carouselTrack">
+<!-- Step 1 -->
+<section class="w-1/3 h-full flex flex-col justify-center items-center px-margin-mobile text-center pb-[120px]">
+<div class="w-64 h-64 mb-stack-lg rounded-full overflow-hidden border border-outline-variant/30 flex items-center justify-center bg-surface-container-lowest shadow-[0_4px_24px_rgba(0,0,0,0.02)]">
+<img class="object-cover w-full h-full opacity-90" data-alt="A highly abstract, 3D modern illustration representing unified finance. Several elegant geometric shapes (spheres, cubes) representing banks, e-wallets, and cash seamlessly orbiting a central glowing core. The style is clean, corporate fintech with a light mode aesthetic, utilizing soft whites, silvers, and deep navy accents against a pristine white background. The lighting is soft and studio-quality." src="https://lh3.googleusercontent.com/aida-public/AB6AXuC4wpST63TWWv-J9f5q5bgKIkVLT1auac5-hGy9UoeIB_5pTPZEUZDPFCUXcSlc7ouHWXwr3zT282dj9oe6oMFfchKRFZNs8gdrqSFrTSRitDX0_Jc-J3CfY0zlFGZLYme9LMZTdOVqpXVHuu0-P1sm2woXV4bNIosXR3CjDLwviztOXFU0I7nTaVW7jJmicO2OHxNHbaWlL4SWFl3NSbBuQdLXYcUuZgsLGXMppp_lRvp9g9CFww7Y"/>
+</div>
+<h2 class="text-headline-lg font-headline-lg text-on-surface mb-stack-sm">Semua keuangan di satu tempat</h2>
+<p class="text-body-lg font-body-lg text-on-surface-variant max-w-sm">Pantau saldo bank, e-wallet, dan uang tunai Anda dalam satu dashboard terpusat dan rapi.</p>
+</section>
+<!-- Step 2 -->
+<section class="w-1/3 h-full flex flex-col justify-center items-center px-margin-mobile text-center pb-[120px]">
+<div class="w-64 h-64 mb-stack-lg rounded-full overflow-hidden border border-outline-variant/30 flex items-center justify-center bg-surface-container-lowest shadow-[0_4px_24px_rgba(0,0,0,0.02)] relative">
+<img class="object-cover w-full h-full opacity-90" data-alt="A sophisticated minimalist 3D rendering of a smartphone screen scanning a sleek digital receipt. Subtle glowing laser-like lines indicate optical character recognition. The aesthetic is high-end tech, utilizing a crisp light mode palette of white, off-white, and subtle greens to signify automatic detection. The lighting is clean, bright, and highly professional." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCOVXxInNVZflsp6kOkKEq2TTT69gKFuFvCSxTCYlCqdjNWvqQn1-obQX4EZtEh4nRAm2WnUb8l9wkLSS6fG0TRfCFFF2_EsNg42T2rF1lAleBxp-_lQUun6J3VikWq5zcahB6rA_5PNWy9C5EWceVFb5nBZ6q849uCmExCfZSP1ntCA-CdUYnGMW2mnh_nTeDUEzu7dUZxQe8oMB5KdhpfLnMgPsPpMucTMYLJgFGljPeXSlSrAQbF"/>
+</div>
+<h2 class="text-headline-lg font-headline-lg text-on-surface mb-stack-sm">Deteksi transaksi otomatis</h2>
+<p class="text-body-lg font-body-lg text-on-surface-variant max-w-sm">Notifikasi dan struk akan dibaca secara cerdas untuk mencatat pengeluaran Anda tanpa perlu mengetik manual.</p>
+</section>
+<!-- Step 3 -->
+<section class="w-1/3 h-full flex flex-col justify-center items-center px-margin-mobile text-center pb-[120px]">
+<div class="w-64 h-64 mb-stack-lg rounded-full overflow-hidden border border-outline-variant/30 flex items-center justify-center bg-surface-container-lowest shadow-[0_4px_24px_rgba(0,0,0,0.02)] relative">
+<img class="object-cover w-full h-full opacity-90" data-alt="A modern, abstract representation of a secure privacy shield composed of translucent frosted glass nodes and glowing connections. The visual emphasizes local AI processing, avoiding cloud imagery. The style is pristine, trust-inducing, and minimalist fintech, utilizing a light mode palette with crisp whites and deep navy borders. Soft studio lighting highlights the glass textures." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBJB6KkTGZ2WCnTdsvgFEBJ5BLWU1Llxlsvaoa0NI0zvAdKdC2uj2pSU9xzd4HeX95tY9LwHbDjpp7xe_r2r-k92nL-DZIfoIOTU5py1BzGSup6w9zgK4_UmvXbwA5THSz5rxeMNH0pxebSXoPyQkxIXHgYPQIEeqUuW5jgrwa7zyT3wPCoUTHXdaLtshScPR_2IdJIQAGXDd7e4H52JxZXCLWQFx9FGDp72igNJkbVVSVzbb-Ykkee"/>
+</div>
+<h2 class="text-headline-lg font-headline-lg text-on-surface mb-stack-sm">AI lokal yang aman</h2>
+<p class="text-body-lg font-body-lg text-on-surface-variant max-w-sm">Privasi Anda terjamin. Seluruh data diproses langsung di perangkat Anda dan tidak pernah dikirim ke cloud.</p>
+</section>
+</div>
+</main>
+<!-- Bottom Controls -->
+<div class="fixed bottom-0 w-full bg-background pt-stack-md pb-margin-mobile px-margin-mobile flex flex-col items-center">
+<!-- Indicators -->
+<div class="flex space-x-2 mb-stack-lg" id="indicators">
+<div class="indicator-dot w-6 h-2 rounded-full bg-primary transition-all duration-300"></div>
+<div class="indicator-dot w-2 h-2 rounded-full bg-surface-variant transition-all duration-300"></div>
+<div class="indicator-dot w-2 h-2 rounded-full bg-surface-variant transition-all duration-300"></div>
+</div>
+<!-- Action Button -->
+<button class="w-full bg-primary-container text-on-primary py-4 rounded-full text-label-sm font-label-sm uppercase tracking-widest hover:bg-primary-fixed-variant transition-colors flex items-center justify-center shadow-[0_4px_12px_rgba(0,0,0,0.05)]" id="nextBtn">
+            Lanjut
+        </button>
+</div>
+<script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const track = document.getElementById('carouselTrack');
+            const nextBtn = document.getElementById('nextBtn');
+            const skipBtn = document.getElementById('skipBtn');
+            const indicators = document.querySelectorAll('.indicator-dot');
+            
+            let currentStep = 0;
+            const totalSteps = 3;
+
+            function updateUI() {
+                // Move track
+                const translateX = -(currentStep * (100 / totalSteps));
+                track.style.transform = `translateX(${translateX}%)`;
+
+                // Update indicators
+                indicators.forEach((dot, index) => {
+                    if (index === currentStep) {
+                        dot.classList.remove('w-2', 'bg-surface-variant');
+                        dot.classList.add('w-6', 'bg-primary');
+                    } else {
+                        dot.classList.remove('w-6', 'bg-primary');
+                        dot.classList.add('w-2', 'bg-surface-variant');
+                    }
+                });
+
+                // Update button text and skip visibility
+                if (currentStep === totalSteps - 1) {
+                    nextBtn.innerText = 'MULAI SEKARANG';
+                    skipBtn.style.opacity = '0';
+                    skipBtn.style.pointerEvents = 'none';
+                } else {
+                    nextBtn.innerText = 'LANJUT';
+                    skipBtn.style.opacity = '1';
+                    skipBtn.style.pointerEvents = 'auto';
+                }
+            }
+
+            nextBtn.addEventListener('click', () => {
+                if (currentStep < totalSteps - 1) {
+                    currentStep++;
+                    updateUI();
+                } else {
+                    // Navigate to dashboard/auth
+                    console.log('Complete Onboarding');
+                    // Add ripple effect or loading state here in real app
+                    nextBtn.innerHTML = '<span class="material-symbols-outlined animate-spin mr-2" style="font-size: 16px;">progress_activity</span> MEMPROSES...';
+                }
+            });
+
+            skipBtn.addEventListener('click', () => {
+                currentStep = totalSteps - 1;
+                updateUI();
+            });
+        });
+    </script>
+</body></html>

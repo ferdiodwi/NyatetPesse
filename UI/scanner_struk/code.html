@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>FinTrack - Scan Receipt</title>
+<!-- Google Fonts -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<!-- Material Symbols -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind CSS with custom configuration -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "inverse-surface": "#2e3132",
+                    "tertiary-fixed": "#ffdad6",
+                    "tertiary-container": "#670007",
+                    "outline-variant": "#c6c5d4",
+                    "surface-dim": "#d9dadb",
+                    "on-surface-variant": "#454652",
+                    "surface-container-high": "#e7e8e9",
+                    "secondary": "#1b6d24",
+                    "primary": "#000666",
+                    "tertiary-fixed-dim": "#ffb4ac",
+                    "primary-fixed-dim": "#bdc2ff",
+                    "surface": "#f8f9fa",
+                    "on-background": "#191c1d",
+                    "error": "#ba1a1a",
+                    "tertiary": "#400003",
+                    "on-tertiary-fixed": "#410003",
+                    "surface-tint": "#4c56af",
+                    "surface-bright": "#f8f9fa",
+                    "on-error-container": "#93000a",
+                    "on-primary-fixed": "#000767",
+                    "primary-container": "#1a237e",
+                    "error-container": "#ffdad6",
+                    "outline": "#767683",
+                    "secondary-fixed-dim": "#88d982",
+                    "inverse-on-surface": "#f0f1f2",
+                    "inverse-primary": "#bdc2ff",
+                    "on-tertiary": "#ffffff",
+                    "on-primary-fixed-variant": "#343d96",
+                    "background": "#f8f9fa",
+                    "on-tertiary-container": "#ff635a",
+                    "primary-fixed": "#e0e0ff",
+                    "secondary-container": "#a0f399",
+                    "on-secondary-container": "#217128",
+                    "on-secondary-fixed": "#002204",
+                    "surface-container-highest": "#e1e3e4",
+                    "on-secondary-fixed-variant": "#005312",
+                    "on-error": "#ffffff",
+                    "on-tertiary-fixed-variant": "#93000e",
+                    "on-secondary": "#ffffff",
+                    "surface-container": "#edeeef",
+                    "on-surface": "#191c1d",
+                    "secondary-fixed": "#a3f69c",
+                    "surface-variant": "#e1e3e4",
+                    "on-primary": "#ffffff",
+                    "surface-container-lowest": "#ffffff",
+                    "on-primary-container": "#8690ee",
+                    "surface-container-low": "#f3f4f5"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "0.75rem",
+                    "full": "9999px"
+            },
+            "spacing": {
+                    "stack-md": "1rem",
+                    "stack-sm": "0.5rem",
+                    "margin-mobile": "1.25rem",
+                    "stack-lg": "1.5rem",
+                    "gutter": "1rem"
+            },
+            "fontFamily": {
+                    "body-md": ["Inter"],
+                    "headline-lg": ["Inter"],
+                    "body-lg": ["Inter"],
+                    "headline-md": ["Inter"],
+                    "display-currency": ["Inter"],
+                    "label-sm": ["Inter"]
+            },
+            "fontSize": {
+                    "body-md": ["14px", {"lineHeight": "20px", "fontWeight": "400"}],
+                    "headline-lg": ["24px", {"lineHeight": "32px", "fontWeight": "600"}],
+                    "body-lg": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                    "headline-md": ["20px", {"lineHeight": "28px", "fontWeight": "600"}],
+                    "display-currency": ["32px", {"lineHeight": "40px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                    "label-sm": ["12px", {"lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "500"}]
+            }
+          },
+        }
+      }
+    </script>
+<style>
+        .scanner-line {
+            animation: scan-vertical 2s ease-in-out infinite alternate;
+        }
+        @keyframes scan-vertical {
+            0% { top: 10%; opacity: 0; }
+            10% { opacity: 1; }
+            90% { opacity: 1; }
+            100% { top: 90%; opacity: 0; }
+        }
+        .bracket {
+            width: 32px;
+            height: 32px;
+            border-color: #000666; /* theme primary */
+            border-style: solid;
+        }
+        .bracket-tl { border-width: 4px 0 0 4px; border-top-left-radius: 12px; }
+        .bracket-tr { border-width: 4px 4px 0 0; border-top-right-radius: 12px; }
+        .bracket-bl { border-width: 0 0 4px 4px; border-bottom-left-radius: 12px; }
+        .bracket-br { border-width: 0 4px 4px 0; border-bottom-right-radius: 12px; }
+    </style>
+</head>
+<body class="bg-background text-on-background font-body-md text-body-md h-screen flex flex-col overflow-hidden">
+<!-- TopAppBar -->
+<header class="bg-surface w-full top-0 sticky border-b border-outline-variant flat no shadows transition-colors duration-200 flex justify-between items-center px-margin-mobile py-stack-sm w-full z-40">
+<div class="flex items-center gap-stack-sm">
+<!-- Leading Avatar -->
+<div class="w-8 h-8 rounded-full overflow-hidden bg-surface-container flex items-center justify-center">
+<span class="material-symbols-outlined text-on-surface-variant">person</span>
+</div>
+</div>
+<h1 class="text-headline-md font-headline-md font-bold text-primary">FinTrack</h1>
+<!-- Trailing Icon -->
+<button class="w-8 h-8 flex items-center justify-center text-primary hover:bg-surface-container-low rounded-full transition-colors duration-200">
+<span class="material-symbols-outlined">settings</span>
+</button>
+</header>
+<!-- Main Content Canvas -->
+<main class="flex-grow flex flex-col px-margin-mobile py-stack-md gap-stack-md relative z-10 overflow-hidden mb-20">
+<!-- Instruction / Helper Text -->
+<div class="text-center w-full px-4">
+<p class="text-body-lg font-body-lg text-on-surface">Posisikan struk di dalam bingkai</p>
+<p class="text-body-md font-body-md text-outline mt-1">Pastikan pencahayaan cukup dan teks terbaca jelas.</p>
+</div>
+<!-- Camera Viewport (Simulated) -->
+<div class="relative flex-grow bg-surface-container-highest rounded-xl overflow-hidden shadow-sm border border-outline-variant/30 w-full flex items-center justify-center">
+<!-- Simulated Camera Feed Background -->
+<div class="absolute inset-0 bg-cover bg-center w-full h-full opacity-80" data-alt="A top-down, slightly angled view of a crumpled white paper store receipt sitting on a sleek, dark grey modern desk. The lighting is clean, bright, and professional, characteristic of a premium light-mode fintech application. The receipt has indistinct printed text. The overall scene conveys a sense of clear, minimalist data capture ready for processing." style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuD-YBCqtn10CR6GWionyVP-UAjYvEzLH8nuf7ZBpPBYDj6yjhX3qZN9WPRLI4L-BOTzhHNJ3u7Jgho6Qiqoe2XRMl8YKki9pIP9CrplyjWg1zmzKWNhlXZr5q-43vwOXXmyhzWXB9o1dAmGrREDFg7bRLEzWVjBN_cCQTObnU-2t9VYQa_NG8TGou593qu7S3v5lCD6kcJYYokGYbH9ocCv4jOqtPelZObt2lsWi8BQPjDsNfbg3HlK')">
+</div>
+<!-- Dark Overlay to focus on frame -->
+<div class="absolute inset-0 bg-on-background/20"></div>
+<!-- Detection Frame -->
+<div class="relative w-4/5 h-4/5 max-h-[500px] border border-outline/30 rounded-lg flex flex-col justify-between p-1 z-10">
+<!-- Brackets -->
+<div class="flex justify-between w-full absolute top-0 left-0 right-0 -m-1">
+<div class="bracket bracket-tl"></div>
+<div class="bracket bracket-tr"></div>
+</div>
+<div class="flex justify-between w-full absolute bottom-0 left-0 right-0 -m-1">
+<div class="bracket bracket-bl"></div>
+<div class="bracket bracket-br"></div>
+</div>
+<!-- Scanning Line Animation -->
+<div class="scanner-line absolute left-0 right-0 h-0.5 bg-primary-container shadow-[0_0_8px_rgba(26,35,126,0.8)] z-20"></div>
+</div>
+</div>
+<!-- Camera Controls -->
+<div class="flex justify-around items-center pt-stack-sm pb-stack-md w-full">
+<!-- Gallery Button -->
+<button class="w-12 h-12 flex items-center justify-center rounded-full bg-surface-container hover:bg-surface-container-high text-on-surface-variant transition-colors duration-200">
+<span class="material-symbols-outlined">photo_library</span>
+</button>
+<!-- Large Capture Button -->
+<button class="w-20 h-20 rounded-full border-4 border-surface-container-high bg-white flex items-center justify-center shadow-sm hover:scale-95 transition-transform duration-200 focus:outline-none" id="capture-btn">
+<div class="w-16 h-16 rounded-full bg-primary-container flex items-center justify-center">
+<span class="material-symbols-outlined text-white" style="font-variation-settings: 'FILL' 1;">camera</span>
+</div>
+</button>
+<!-- Flash Toggle -->
+<button class="w-12 h-12 flex items-center justify-center rounded-full bg-surface-container hover:bg-surface-container-high text-on-surface-variant transition-colors duration-200">
+<span class="material-symbols-outlined">flash_off</span>
+</button>
+</div>
+</main>
+<!-- Processing State Overlay (Hidden by default) -->
+<div class="fixed inset-0 bg-background/95 z-50 hidden flex-col items-center justify-center px-margin-mobile backdrop-blur-sm" id="processing-overlay">
+<div class="w-16 h-16 rounded-full border-4 border-surface-container-highest border-t-primary animate-spin mb-stack-lg"></div>
+<h2 class="text-headline-md font-headline-md text-on-background text-center transition-opacity duration-300" id="processing-text">Membaca struk...</h2>
+<p class="text-body-md font-body-md text-outline mt-stack-sm text-center">Mohon tunggu sebentar.</p>
+</div>
+<!-- BottomNavBar -->
+<nav class="fixed bottom-0 left-0 w-full flex justify-around items-center bg-surface py-2 px-4 border-t border-outline-variant z-50">
+<!-- Home (Inactive) -->
+<a class="flex flex-col items-center justify-center text-on-surface-variant px-5 py-1 hover:bg-surface-container-high transition-transform duration-150 group" href="#">
+<span class="material-symbols-outlined group-hover:scale-110 transition-transform">home</span>
+<span class="text-label-sm font-label-sm mt-1">Home</span>
+</a>
+<!-- History (Inactive) -->
+<a class="flex flex-col items-center justify-center text-on-surface-variant px-5 py-1 hover:bg-surface-container-high transition-transform duration-150 group" href="#">
+<span class="material-symbols-outlined group-hover:scale-110 transition-transform">receipt_long</span>
+<span class="text-label-sm font-label-sm mt-1">History</span>
+</a>
+<!-- Scan (Active) -->
+<a class="flex flex-col items-center justify-center bg-secondary-container text-on-secondary-container rounded-full px-5 py-1 scale-95 transition-transform duration-150" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">qr_code_scanner</span>
+<span class="text-label-sm font-label-sm mt-1">Scan</span>
+</a>
+<!-- Budget (Inactive) -->
+<a class="flex flex-col items-center justify-center text-on-surface-variant px-5 py-1 hover:bg-surface-container-high transition-transform duration-150 group" href="#">
+<span class="material-symbols-outlined group-hover:scale-110 transition-transform">account_balance_wallet</span>
+<span class="text-label-sm font-label-sm mt-1">Budget</span>
+</a>
+<!-- Stats (Inactive) -->
+<a class="flex flex-col items-center justify-center text-on-surface-variant px-5 py-1 hover:bg-surface-container-high transition-transform duration-150 group" href="#">
+<span class="material-symbols-outlined group-hover:scale-110 transition-transform">query_stats</span>
+<span class="text-label-sm font-label-sm mt-1">Stats</span>
+</a>
+</nav>
+<!-- Simple interaction script for demonstration -->
+<script>
+        document.getElementById('capture-btn').addEventListener('click', function() {
+            const overlay = document.getElementById('processing-overlay');
+            const textElement = document.getElementById('processing-text');
+            
+            // Show overlay
+            overlay.classList.remove('hidden');
+            overlay.classList.add('flex');
+            
+            textElement.textContent = "Membaca struk...";
+            
+            // Simulate processing steps
+            setTimeout(() => {
+                textElement.style.opacity = 0;
+                setTimeout(() => {
+                    textElement.textContent = "Mengekstrak detail transaksi...";
+                    textElement.style.opacity = 1;
+                }, 300);
+            }, 1500);
+            
+            // Hide overlay after delay to simulate completion
+            setTimeout(() => {
+                overlay.classList.add('hidden');
+                overlay.classList.remove('flex');
+            }, 3500);
+        });
+    </script>
+</body></html>

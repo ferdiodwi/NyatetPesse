@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+
+<html lang="id"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>FinTrack - Peringatan Transaksi</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "inverse-surface": "#2e3132",
+                        "tertiary-fixed": "#ffdad6",
+                        "tertiary-container": "#670007",
+                        "outline-variant": "#c6c5d4",
+                        "surface-dim": "#d9dadb",
+                        "on-surface-variant": "#454652",
+                        "surface-container-high": "#e7e8e9",
+                        "secondary": "#1b6d24",
+                        "primary": "#000666",
+                        "tertiary-fixed-dim": "#ffb4ac",
+                        "primary-fixed-dim": "#bdc2ff",
+                        "surface": "#f8f9fa",
+                        "on-background": "#191c1d",
+                        "error": "#ba1a1a",
+                        "tertiary": "#400003",
+                        "on-tertiary-fixed": "#410003",
+                        "surface-tint": "#4c56af",
+                        "surface-bright": "#f8f9fa",
+                        "on-error-container": "#93000a",
+                        "on-primary-fixed": "#000767",
+                        "primary-container": "#1a237e",
+                        "error-container": "#ffdad6",
+                        "outline": "#767683",
+                        "secondary-fixed-dim": "#88d982",
+                        "inverse-on-surface": "#f0f1f2",
+                        "inverse-primary": "#bdc2ff",
+                        "on-tertiary": "#ffffff",
+                        "on-primary-fixed-variant": "#343d96",
+                        "background": "#f8f9fa",
+                        "on-tertiary-container": "#ff635a",
+                        "primary-fixed": "#e0e0ff",
+                        "secondary-container": "#a0f399",
+                        "on-secondary-container": "#217128",
+                        "on-secondary-fixed": "#002204",
+                        "surface-container-highest": "#e1e3e4",
+                        "on-secondary-fixed-variant": "#005312",
+                        "on-error": "#ffffff",
+                        "on-tertiary-fixed-variant": "#93000e",
+                        "on-secondary": "#ffffff",
+                        "surface-container": "#edeeef",
+                        "on-surface": "#191c1d",
+                        "secondary-fixed": "#a3f69c",
+                        "surface-variant": "#e1e3e4",
+                        "on-primary": "#ffffff",
+                        "surface-container-lowest": "#ffffff",
+                        "on-primary-container": "#8690ee",
+                        "surface-container-low": "#f3f4f5"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "stack-md": "1rem",
+                        "stack-sm": "0.5rem",
+                        "margin-mobile": "1.25rem",
+                        "stack-lg": "1.5rem",
+                        "gutter": "1rem"
+                    },
+                    "fontFamily": {
+                        "body-md": ["Inter"],
+                        "headline-lg": ["Inter"],
+                        "body-lg": ["Inter"],
+                        "headline-md": ["Inter"],
+                        "display-currency": ["Inter"],
+                        "label-sm": ["Inter"]
+                    },
+                    "fontSize": {
+                        "body-md": ["14px", { "lineHeight": "20px", "fontWeight": "400" }],
+                        "headline-lg": ["24px", { "lineHeight": "32px", "fontWeight": "600" }],
+                        "body-lg": ["16px", { "lineHeight": "24px", "fontWeight": "400" }],
+                        "headline-md": ["20px", { "lineHeight": "28px", "fontWeight": "600" }],
+                        "display-currency": ["32px", { "lineHeight": "40px", "letterSpacing": "-0.02em", "fontWeight": "700" }],
+                        "label-sm": ["12px", { "lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "500" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .material-symbols-outlined.filled {
+            font-variation-settings: 'FILL' 1;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background text-on-background font-body-md min-h-screen flex flex-col">
+<!-- Header - Context: Transactional / Error State, Nav shell suppressed -->
+<header class="w-full top-0 sticky z-10 bg-surface dark:bg-background border-b border-outline-variant dark:border-outline flex justify-between items-center px-margin-mobile py-stack-sm h-16">
+<button class="text-on-surface-variant hover:bg-surface-container-low p-2 rounded-full transition-colors duration-200">
+<span class="material-symbols-outlined" data-icon="arrow_back">arrow_back</span>
+</button>
+<h1 class="text-headline-md font-headline-md font-bold text-primary dark:text-on-primary-fixed">Peringatan</h1>
+<div class="w-10"></div> <!-- Spacer for centering -->
+</header>
+<main class="flex-1 overflow-y-auto pb-[100px]">
+<div class="max-w-md mx-auto p-margin-mobile flex flex-col gap-stack-lg">
+<p class="text-body-md font-body-md text-on-surface-variant">
+                Kami menemukan beberapa kendala saat memproses transaksi terbaru Anda. Mohon tinjau informasi di bawah ini.
+            </p>
+<!-- 1. OCR Gagal -->
+<section class="bg-surface-container-lowest rounded-xl border border-error-container p-4 shadow-sm flex flex-col gap-stack-md">
+<div class="flex items-start gap-3">
+<div class="w-10 h-10 rounded-full bg-error-container text-on-error-container flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined filled" data-icon="error_outline">error_outline</span>
+</div>
+<div>
+<h2 class="text-body-lg font-body-lg font-semibold text-error mb-1">OCR Gagal</h2>
+<p class="text-body-md font-body-md text-on-surface-variant">Gagal membaca struk. Gambar mungkin terlalu buram atau kurang pencahayaan.</p>
+<div class="mt-3 w-32 h-32 bg-surface-container rounded-lg flex items-center justify-center overflow-hidden border border-outline-variant relative group cursor-pointer">
+<img alt="Buram struk" class="object-cover w-full h-full opacity-50 grayscale" data-alt="A blurry and dimly lit receipt on a dark wooden table. The text on the receipt is illegible. The overall lighting is low-key, creating a slightly frustrating but authentic atmosphere of a failed scan attempt. Shot from a slightly top-down angle, emphasizing the lack of clarity." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBV0bmxBrAXFboKseoC085_xa3Jc2F5msCLOH_Cgccz1cxnVgmuARelkwkLLV6M3-64m-3rBInlMZ-cUf7wtDBB8qPfs67b98b3j8BbLljKzFkbvFh2njQyQwacpddKQD9-6WgQM1ALL1XH49KRzBz66O1MRg_Jvy-aaIDgFDfPjA_3J3rsrq7nY4dj8M1eTxlELImI49BTHuZCQvSrcckRe8z2XXk389NGqsn6CHNCp2dEtmRkwjOw"/>
+<div class="absolute inset-0 bg-on-background/20 flex items-center justify-center">
+<span class="material-symbols-outlined text-surface text-[32px]" data-icon="image_not_supported">image_not_supported</span>
+</div>
+</div>
+</div>
+</div>
+<div class="flex gap-3 mt-2">
+<button class="flex-1 py-2 px-4 rounded-full bg-primary-container text-on-primary font-label-sm text-label-sm hover:bg-primary-fixed transition-colors">
+                        Foto Ulang
+                    </button>
+<button class="flex-1 py-2 px-4 rounded-full border border-primary-container text-primary-container font-label-sm text-label-sm hover:bg-surface-container-low transition-colors">
+                        Input Manual
+                    </button>
+</div>
+</section>
+<!-- 2. Keyakinan AI Rendah -->
+<section class="bg-surface-container-lowest rounded-xl border border-tertiary-container/30 p-4 shadow-sm flex flex-col gap-stack-md">
+<div class="flex items-start gap-3">
+<div class="w-10 h-10 rounded-full bg-tertiary-container text-on-tertiary flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined filled" data-icon="warning">warning</span>
+</div>
+<div class="flex-1">
+<h2 class="text-body-lg font-body-lg font-semibold text-tertiary mb-1">Keyakinan AI Rendah</h2>
+<p class="text-body-md font-body-md text-on-surface-variant">Tinjau transaksi ini. Kami kurang yakin dengan kategori yang diprediksi.</p>
+<div class="mt-3 bg-surface-container-low p-3 rounded-lg border border-outline-variant flex justify-between items-center">
+<div>
+<p class="text-label-sm font-label-sm text-on-surface-variant mb-1">Prediksi: <span class="text-on-surface font-semibold">Makan &amp; Minum</span> (54%)</p>
+<p class="text-body-md font-body-md font-medium text-on-surface">Starbucks Reserve</p>
+</div>
+<p class="text-body-lg font-body-lg font-semibold text-on-surface">Rp 125.000</p>
+</div>
+</div>
+</div>
+<div class="flex gap-3 mt-2">
+<button class="flex-1 py-2 px-4 rounded-full bg-primary-container text-on-primary font-label-sm text-label-sm hover:bg-primary-fixed transition-colors">
+                        Konfirmasi
+                    </button>
+<button class="flex-1 py-2 px-4 rounded-full border border-primary-container text-primary-container font-label-sm text-label-sm hover:bg-surface-container-low transition-colors">
+                        Ubah Kategori
+                    </button>
+</div>
+</section>
+<!-- 3. Duplikat Terdeteksi -->
+<section class="bg-surface-container-lowest rounded-xl border border-secondary-container/50 p-4 shadow-sm flex flex-col gap-stack-md">
+<div class="flex items-start gap-3">
+<div class="w-10 h-10 rounded-full bg-surface-variant text-on-surface-variant flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined" data-icon="content_copy">content_copy</span>
+</div>
+<div class="flex-1">
+<h2 class="text-body-lg font-body-lg font-semibold text-on-surface mb-1">Duplikat Terdeteksi</h2>
+<p class="text-body-md font-body-md text-on-surface-variant mb-3">Transaksi serupa sudah ada. Apakah ini pengeluaran yang sama?</p>
+<!-- Current Transaction -->
+<div class="flex items-center justify-between py-2 border-b border-outline-variant/30">
+<div class="flex items-center gap-2">
+<span class="w-2 h-2 rounded-full bg-primary"></span>
+<div>
+<p class="text-body-md font-body-md text-on-surface">Baru saja di-scan</p>
+<p class="text-label-sm font-label-sm text-on-surface-variant">Tokopedia - Hari ini, 14:30</p>
+</div>
+</div>
+<p class="text-body-md font-body-md font-semibold text-on-surface">Rp 450.000</p>
+</div>
+<!-- Existing Transaction -->
+<div class="flex items-center justify-between py-2 opacity-70">
+<div class="flex items-center gap-2">
+<span class="w-2 h-2 rounded-full bg-outline"></span>
+<div>
+<p class="text-body-md font-body-md text-on-surface">Tercatat di riwayat</p>
+<p class="text-label-sm font-label-sm text-on-surface-variant">Tokopedia - Hari ini, 14:28</p>
+</div>
+</div>
+<p class="text-body-md font-body-md font-semibold text-on-surface">Rp 450.000</p>
+</div>
+</div>
+</div>
+<div class="flex gap-3 mt-2">
+<button class="flex-1 py-2 px-4 rounded-full bg-primary-container text-on-primary font-label-sm text-label-sm hover:bg-primary-fixed transition-colors">
+                        Abaikan (Hapus)
+                    </button>
+<button class="flex-1 py-2 px-4 rounded-full border border-primary-container text-primary-container font-label-sm text-label-sm hover:bg-surface-container-low transition-colors">
+                        Simpan Keduanya
+                    </button>
+</div>
+</section>
+</div>
+</main>
+</body></html>
