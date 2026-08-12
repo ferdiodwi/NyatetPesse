@@ -31,163 +31,183 @@ class _SecuritySettingsScreenState extends ConsumerState<SecuritySettingsScreen>
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (context) {
-        return StatefulBuilder(
-          builder: (context, setDialogState) {
-            return AlertDialog(
-              title: const Text('Buat PIN Baru'),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  TextField(
-                    controller: _pinController,
-                    keyboardType: TextInputType.number,
-                    maxLength: 6,
-                    obscureText: true,
-                    decoration: const InputDecoration(
-                      labelText: 'Masukkan 6 Digit PIN',
-                    ),
-                  ),
-                  TextField(
-                    controller: _confirmPinController,
-                    keyboardType: TextInputType.number,
-                    maxLength: 6,
-                    obscureText: true,
-                    decoration: const InputDecoration(
-                      labelText: 'Konfirmasi PIN',
-                    ),
-                  ),
-                  if (_errorMessage != null)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 8),
-                      child: Text(
-                        _errorMessage!,
-                        style: TextStyle(color: Theme.of(context).colorScheme.error),
-                      ),
-                    ),
-                ],
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text('Buat PIN Baru'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: _pinController,
+                keyboardType: TextInputType.number,
+                maxLength: 6,
+                obscureText: true,
+                decoration: const InputDecoration(labelText: 'Masukkan 6 Digit PIN'),
               ),
-              actions: [
-                TextButton(
-                  onPressed: () {
-                    Navigator.pop(context);
-                  },
-                  child: const Text('Batal'),
+              TextField(
+                controller: _confirmPinController,
+                keyboardType: TextInputType.number,
+                maxLength: 6,
+                obscureText: true,
+                decoration: const InputDecoration(labelText: 'Konfirmasi PIN'),
+              ),
+              if (_errorMessage != null)
+                Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: Text(_errorMessage!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
                 ),
-                ElevatedButton(
-                  onPressed: () async {
-                    if (_pinController.text.length != 6) {
-                      setDialogState(() => _errorMessage = 'PIN harus 6 digit');
-                      return;
-                    }
-                    if (_pinController.text != _confirmPinController.text) {
-                      setDialogState(() => _errorMessage = 'Konfirmasi PIN tidak cocok');
-                      return;
-                    }
-
-                    await ref.read(securityControllerProvider.notifier).setPin(_pinController.text);
-                    if (context.mounted) Navigator.pop(context);
-                  },
-                  child: const Text('Simpan'),
-                ),
-              ],
-            );
-          }
-        );
-      },
+            ],
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(context), child: const Text('Batal')),
+            ElevatedButton(
+              onPressed: () async {
+                if (_pinController.text.length != 6) {
+                  setDialogState(() => _errorMessage = 'PIN harus 6 digit');
+                  return;
+                }
+                if (_pinController.text != _confirmPinController.text) {
+                  setDialogState(() => _errorMessage = 'Konfirmasi PIN tidak cocok');
+                  return;
+                }
+                await ref.read(securityControllerProvider.notifier).setPin(_pinController.text);
+                if (context.mounted) Navigator.pop(context);
+              },
+              child: const Text('Simpan'),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
   void _showRemovePinDialog() {
     showDialog(
       context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text('Hapus PIN?'),
-          content: const Text('Fitur kunci aplikasi akan dinonaktifkan sepenuhnya (termasuk Biometrik).'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Batal'),
+      builder: (context) => AlertDialog(
+        title: const Text('Hapus PIN?'),
+        content: const Text('Kunci aplikasi dan sidik jari akan dinonaktifkan sepenuhnya.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Batal')),
+          ElevatedButton(
+            onPressed: () async {
+              await ref.read(securityControllerProvider.notifier).removePin();
+              if (context.mounted) Navigator.pop(context);
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Theme.of(context).colorScheme.errorContainer,
+              foregroundColor: Theme.of(context).colorScheme.onErrorContainer,
             ),
-            ElevatedButton(
-              onPressed: () async {
-                await ref.read(securityControllerProvider.notifier).removePin();
-                if (context.mounted) Navigator.pop(context);
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Theme.of(context).colorScheme.errorContainer,
-                foregroundColor: Theme.of(context).colorScheme.onErrorContainer,
-              ),
-              child: const Text('Hapus'),
-            ),
-          ],
-        );
-      },
+            child: const Text('Hapus'),
+          ),
+        ],
+      ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    final securityState = ref.watch(securityControllerProvider);
-    final controller = ref.watch(securityControllerProvider.notifier);
+    final s = ref.watch(securityControllerProvider);
+    final controller = ref.read(securityControllerProvider.notifier);
+    final primary = Theme.of(context).colorScheme.primary;
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Keamanan & Privasi'),
-      ),
+      appBar: AppBar(title: const Text('Keamanan & Privasi')),
       body: ListView(
         children: [
+          // ── PIN ──────────────────────────────────────────────
           Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Text(
-              'Kunci Aplikasi',
-              style: TextStyle(
-                color: Theme.of(context).colorScheme.primary,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
+            child: Text('Kunci Aplikasi',
+                style: TextStyle(color: primary, fontWeight: FontWeight.bold, fontSize: 13)),
           ),
           ListTile(
             leading: const Icon(Icons.pin),
             title: const Text('PIN Aplikasi'),
-            subtitle: Text(securityState.hasPinSet ? 'Aktif' : 'Belum Dibuat'),
-            trailing: securityState.hasPinSet
-                ? IconButton(
-                    icon: const Icon(Icons.delete_outline),
-                    onPressed: _showRemovePinDialog,
+            subtitle: Text(s.hasPinSet ? 'Aktif' : 'Belum dibuat — ketuk untuk membuat PIN'),
+            trailing: s.hasPinSet
+                ? Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      TextButton(onPressed: _showSetPinDialog, child: const Text('Ganti')),
+                      IconButton(
+                        icon: const Icon(Icons.delete_outline),
+                        tooltip: 'Hapus PIN',
+                        onPressed: _showRemovePinDialog,
+                      ),
+                    ],
                   )
                 : const Icon(Icons.chevron_right),
-            onTap: securityState.hasPinSet ? null : _showSetPinDialog,
+            onTap: s.hasPinSet ? null : _showSetPinDialog,
           ),
-          if (securityState.hasPinSet && securityState.isBiometricSupported)
-            SwitchListTile(
-              secondary: const Icon(Icons.fingerprint),
-              title: const Text('Gunakan Sidik Jari / Face ID'),
-              subtitle: const Text('Buka aplikasi tanpa memasukkan PIN'),
-              value: securityState.isBiometricEnabled,
-              onChanged: (value) async {
-                if (value) {
-                  // Authenticate first before enabling
-                  final success = await controller.authenticateWithBiometric();
-                  if (success) {
-                    controller.setBiometricEnabled(true);
-                  } else if (context.mounted) {
-                     ScaffoldMessenger.of(context).showSnackBar(
-                       const SnackBar(content: Text('Gagal verifikasi biometrik')),
-                     );
-                  }
-                } else {
-                  controller.setBiometricEnabled(false);
-                }
-              },
+
+          // ── FINGERPRINT ──────────────────────────────────────
+          if (s.hasPinSet) ...[
+            const Divider(),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+              child: Text('Biometrik',
+                  style: TextStyle(color: primary, fontWeight: FontWeight.bold, fontSize: 13)),
             ),
+            if (!s.isBiometricSupported)
+              const ListTile(
+                leading: Icon(Icons.info_outline, color: Colors.grey),
+                title: Text('Tidak Didukung'),
+                subtitle: Text('Perangkat tidak memiliki sensor sidik jari.'),
+              )
+            else
+              SwitchListTile(
+                secondary: AnimatedContainer(
+                  duration: const Duration(milliseconds: 250),
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: s.isBiometricEnabled
+                        ? primary.withValues(alpha: 0.12)
+                        : Theme.of(context).colorScheme.surfaceContainerHighest,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(
+                    Icons.fingerprint,
+                    color: s.isBiometricEnabled ? primary : Colors.grey,
+                    size: 26,
+                  ),
+                ),
+                title: const Text('Sidik Jari', style: TextStyle(fontWeight: FontWeight.w500)),
+                subtitle: Text(
+                  s.isBiometricEnabled
+                      ? 'Aktif — gunakan sidik jari untuk membuka kunci'
+                      : 'Nonaktif',
+                  style: const TextStyle(fontSize: 12),
+                ),
+                value: s.isBiometricEnabled,
+                onChanged: (value) async {
+                  if (value) {
+                    final messenger = ScaffoldMessenger.of(context);
+                    final success = await controller.authenticateWithBiometric();
+                    if (!success) {
+                      messenger.showSnackBar(
+                        const SnackBar(content: Text('Verifikasi sidik jari gagal.')),
+                      );
+                    }
+                    if (success) await controller.setBiometricEnabled(true);
+                  } else {
+                    await controller.setBiometricEnabled(false);
+                  }
+                },
+              ),
+          ],
+
+          // ── INFO ─────────────────────────────────────────────
           const Divider(),
-          const Padding(
-            padding: EdgeInsets.all(16.0),
+          Padding(
+            padding: const EdgeInsets.all(16),
             child: Text(
-              'Info: Saat kunci aplikasi aktif, Anda akan diminta memasukkan PIN setiap kali membuka aplikasi.',
-              style: TextStyle(color: Colors.grey),
+              s.hasPinSet
+                  ? s.isBiometricEnabled
+                      ? 'Saat aplikasi dikunci, Anda bisa menggunakan sidik jari atau memasukkan PIN.'
+                      : 'Saat aplikasi dikunci, Anda perlu memasukkan PIN.'
+                  : 'Buat PIN terlebih dahulu untuk mengaktifkan kunci aplikasi dan sidik jari.',
+              style: const TextStyle(color: Colors.grey, fontSize: 13),
             ),
           ),
         ],

@@ -3,7 +3,7 @@
     <uses-permission android:name="android.permission.USE_FINGERPRINT"/>
     <uses-permission android:name="android.permission.CAMERA"/>
     <application
-        android:label="nyatet_pesse"
+        android:label="NyatetPesse"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity

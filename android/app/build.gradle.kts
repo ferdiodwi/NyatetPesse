@@ -42,3 +42,8 @@ android {
 flutter {
     source = "../.."
 }
+
+dependencies {
+    // Biometric library: needed for fingerprint-only BiometricPrompt with BIOMETRIC_STRONG
+    implementation("androidx.biometric:biometric:1.2.0-alpha05")
+}

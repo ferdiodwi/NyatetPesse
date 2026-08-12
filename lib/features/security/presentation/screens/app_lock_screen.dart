@@ -1,28 +1,33 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:nyatet_pesse/features/security/presentation/providers/security_provider.dart';
 
 class AppLockScreen extends ConsumerStatefulWidget {
-  final Widget child; // The main app content to show when unlocked
-  
+  final Widget child;
   const AppLockScreen({super.key, required this.child});
 
   @override
   ConsumerState<AppLockScreen> createState() => _AppLockScreenState();
 }
 
-class _AppLockScreenState extends ConsumerState<AppLockScreen> with WidgetsBindingObserver {
-  String _pinInput = '';
+class _AppLockScreenState extends ConsumerState<AppLockScreen>
+    with WidgetsBindingObserver {
+  final List<String> _pinDigits = [];
   bool _hasError = false;
+  bool _isBiometricLoading = false;
+  bool _userDismissedBiometric = false;
+
+  static const int _pinLength = 6;
+  static const _primary = Color(0xFF000666);
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    // Automatically try biometric auth when screen opens if enabled
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      final state = ref.read(securityControllerProvider);
-      if (state.isBiometricEnabled && state.isBiometricSupported) {
+      final s = ref.read(securityControllerProvider);
+      if (s.isBiometricEnabled && s.isBiometricSupported) {
         _tryBiometric();
       }
     });
@@ -36,163 +41,208 @@ class _AppLockScreenState extends ConsumerState<AppLockScreen> with WidgetsBindi
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.paused || state == AppLifecycleState.inactive) {
-       ref.read(securityControllerProvider.notifier).lockApp();
+    if (state == AppLifecycleState.paused) {
+      ref.read(securityControllerProvider.notifier).lockApp();
+      _userDismissedBiometric = false;
     } else if (state == AppLifecycleState.resumed) {
-       final securityState = ref.read(securityControllerProvider);
-       if (securityState.isAppLocked && securityState.isBiometricEnabled && securityState.isBiometricSupported) {
-         _tryBiometric();
-       }
-    }
-  }
-
-  Future<void> _tryBiometric() async {
-    await ref.read(securityControllerProvider.notifier).authenticateWithBiometric();
-  }
-
-  void _onNumberPressed(String number) async {
-    if (_pinInput.length < 6) {
-      setState(() {
-        _pinInput += number;
-        _hasError = false;
-      });
-
-      if (_pinInput.length == 6) {
-        // Verify PIN
-        final success = await ref.read(securityControllerProvider.notifier).verifyPin(_pinInput);
-        if (!success) {
-          setState(() {
-            _hasError = true;
-            _pinInput = '';
-          });
-        }
+      final s = ref.read(securityControllerProvider);
+      if (s.isAppLocked && s.isBiometricEnabled && s.isBiometricSupported && !_userDismissedBiometric) {
+        _tryBiometric();
       }
     }
   }
 
-  void _onDeletePressed() {
-    if (_pinInput.isNotEmpty) {
+  Future<void> _tryBiometric() async {
+    if (_isBiometricLoading || _userDismissedBiometric) return;
+    setState(() => _isBiometricLoading = true);
+    final success = await ref.read(securityControllerProvider.notifier).authenticateWithBiometric();
+    if (mounted) {
+      setState(() => _isBiometricLoading = false);
+      if (!success) _userDismissedBiometric = true;
+    }
+  }
+
+  // Immediate — no async delay on visual update
+  void _onDigit(String d) {
+    if (_pinDigits.length >= _pinLength) return;
+    HapticFeedback.lightImpact();
+    setState(() {
+      _hasError = false;
+      _pinDigits.add(d);
+    });
+
+    if (_pinDigits.length == _pinLength) {
+      _verifyPin();
+    }
+  }
+
+  void _onDelete() {
+    if (_pinDigits.isEmpty) return;
+    HapticFeedback.lightImpact();
+    setState(() {
+      _hasError = false;
+      _pinDigits.removeLast();
+    });
+  }
+
+  Future<void> _verifyPin() async {
+    final pin = _pinDigits.join();
+    final success = await ref.read(securityControllerProvider.notifier).verifyPin(pin);
+    if (!success && mounted) {
+      HapticFeedback.heavyImpact();
       setState(() {
-        _pinInput = _pinInput.substring(0, _pinInput.length - 1);
-        _hasError = false;
+        _hasError = true;
+        _pinDigits.clear();
       });
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final securityState = ref.watch(securityControllerProvider);
+    final s = ref.watch(securityControllerProvider);
+    if (!s.isAppLocked) return widget.child;
 
-    // If not locked, show the main app
-    if (!securityState.isAppLocked) {
-      return widget.child;
-    }
-
-    // Otherwise show the lock screen
     return Scaffold(
-      backgroundColor: Theme.of(context).colorScheme.surface,
+      backgroundColor: Colors.white,
       body: SafeArea(
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Spacer(),
-            Icon(
-              Icons.lock,
-              size: 64,
-              color: Theme.of(context).colorScheme.primary,
-            ),
-            const SizedBox(height: 24),
-            const Text(
-              'Masukkan PIN',
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 32),
+            // Spacer di atas logo agar letaknya agak ke tengah
+            const SizedBox(height: 120),
+
+            // ── Logo / App Icon ──────────────────────────────────
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
-              children: List.generate(6, (index) {
+              children: [
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: const BoxDecoration(
+                    shape: BoxShape.circle,
+                  ),
+                  clipBehavior: Clip.antiAlias,
+                  child: Image.asset(
+                    'assets/images/icon_new.png',
+                    fit: BoxFit.cover,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                const Text(
+                  'NyatetPesse',
+                  style: TextStyle(
+                    color: _primary,
+                    fontSize: 20,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: -0.5,
+                  ),
+                ),
+              ],
+            ),
+
+            // Jarak yang lebih dekat antara logo dan ucapan selamat datang
+            const SizedBox(height: 32),
+
+            // ── Greeting ─────────────────────────────────────────
+            const Text(
+              'Selamat Datang Kembali, Ferdio',
+              style: TextStyle(
+                fontSize: 14,
+                color: Color(0xFF666666),
+              ),
+            ),
+
+            const SizedBox(height: 48),
+
+            // ── PIN dots ─────────────────────────────────────────
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: List.generate(_pinLength, (i) {
+                final filled = i < _pinDigits.length;
                 return Container(
-                  margin: const EdgeInsets.symmetric(horizontal: 8),
-                  width: 16,
-                  height: 16,
+                  // Ubah margin ini agar jarak antar titik PIN lebih lebar
+                  margin: const EdgeInsets.symmetric(horizontal: 18),
+                  width: 13,
+                  height: 13,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    color: index < _pinInput.length
-                        ? Theme.of(context).colorScheme.primary
-                        : Colors.transparent,
+                    color: _hasError
+                        ? Colors.red
+                        : filled
+                            ? _primary
+                            : Colors.transparent,
                     border: Border.all(
-                      color: _hasError
-                          ? Theme.of(context).colorScheme.error
-                          : Theme.of(context).colorScheme.primary,
-                      width: 2,
+                      color: _hasError ? Colors.red : const Color(0xFFAAAAAA),
+                      width: 1.5,
                     ),
                   ),
                 );
               }),
             ),
-            if (_hasError)
-              Padding(
-                padding: const EdgeInsets.only(top: 16),
-                child: Text(
-                  'PIN Salah',
-                  style: TextStyle(
-                    color: Theme.of(context).colorScheme.error,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
+
+            const SizedBox(height: 12),
+
+            // ── Hint text ────────────────────────────────────────
+            Text(
+              _hasError ? 'PIN salah, coba lagi' : 'Masukkan PIN kamu',
+              style: TextStyle(
+                fontSize: 13,
+                color: _hasError ? Colors.red : const Color(0xFF888888),
               ),
+            ),
+
             const Spacer(),
-            _buildNumberPad(securityState),
-            const SizedBox(height: 32),
+
+            // ── Numpad ───────────────────────────────────────────
+            _buildNumpad(s),
+
+            const SizedBox(height: 28),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildNumberPad(SecurityState state) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 32),
+  Widget _buildNumpad(SecurityState s) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 24),
       child: Column(
         children: [
+          _numRow(['1', '2', '3']),
+          const SizedBox(height: 12),
+          _numRow(['4', '5', '6']),
+          const SizedBox(height: 12),
+          _numRow(['7', '8', '9']),
+          const SizedBox(height: 12),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
-              _buildNumberButton('1'),
-              _buildNumberButton('2'),
-              _buildNumberButton('3'),
-            ],
-          ),
-          const SizedBox(height: 16),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: [
-              _buildNumberButton('4'),
-              _buildNumberButton('5'),
-              _buildNumberButton('6'),
-            ],
-          ),
-          const SizedBox(height: 16),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: [
-              _buildNumberButton('7'),
-              _buildNumberButton('8'),
-              _buildNumberButton('9'),
-            ],
-          ),
-          const SizedBox(height: 16),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: [
-              if (state.isBiometricEnabled && state.isBiometricSupported)
-                _buildActionButton(Icons.fingerprint, _tryBiometric)
+              // Fingerprint button (kiri)
+              if (s.isBiometricEnabled && s.isBiometricSupported)
+                _actionButton(
+                  child: _isBiometricLoading
+                      ? const SizedBox(
+                          width: 22,
+                          height: 22,
+                          child: CircularProgressIndicator(strokeWidth: 2, color: _primary),
+                        )
+                      : const Icon(Icons.fingerprint, size: 30, color: _primary),
+                  onTap: () {
+                    _userDismissedBiometric = false;
+                    _tryBiometric();
+                  },
+                  transparent: true,
+                )
               else
-                const SizedBox(width: 72, height: 72), // Placeholder to keep alignment
-              _buildNumberButton('0'),
-              _buildActionButton(Icons.backspace_outlined, _onDeletePressed),
+                const SizedBox(width: 88, height: 72),
+
+              _numButton('0'),
+
+              // Backspace (kanan)
+              _actionButton(
+                child: const Icon(Icons.backspace_rounded, size: 22, color: Color(0xFF444444)),
+                onTap: _onDelete,
+                transparent: true,
+              ),
             ],
           ),
         ],
@@ -200,42 +250,72 @@ class _AppLockScreenState extends ConsumerState<AppLockScreen> with WidgetsBindi
     );
   }
 
-  Widget _buildNumberButton(String number) {
-    return InkWell(
-      onTap: () => _onNumberPressed(number),
-      borderRadius: BorderRadius.circular(36),
-      child: Container(
-        width: 72,
-        height: 72,
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
-        ),
-        child: Text(
-          number,
-          style: const TextStyle(
-            fontSize: 28,
-            fontWeight: FontWeight.bold,
-          ),
+  Row _numRow(List<String> digits) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+      children: digits.map(_numButton).toList(),
+    );
+  }
+
+  Widget _numButton(String d) {
+    return _PinButton(
+      onTap: () => _onDigit(d),
+      child: Text(
+        d,
+        style: const TextStyle(
+          fontSize: 26,
+          fontWeight: FontWeight.w500,
+          color: Color(0xFF111111),
         ),
       ),
     );
   }
 
-  Widget _buildActionButton(IconData icon, VoidCallback onTap) {
-    return InkWell(
+  Widget _actionButton({required Widget child, required VoidCallback onTap, bool transparent = false}) {
+    return _PinButton(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(36),
+      transparent: transparent,
+      child: child,
+    );
+  }
+}
+
+/// Tombol numpad ringan tanpa delay — tidak ada AnimatedContainer atau setState ekstra
+class _PinButton extends StatefulWidget {
+  const _PinButton({required this.child, required this.onTap, this.transparent = false});
+  final Widget child;
+  final VoidCallback onTap;
+  final bool transparent;
+
+  @override
+  State<_PinButton> createState() => _PinButtonState();
+}
+
+class _PinButtonState extends State<_PinButton> {
+  bool _pressed = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTapDown: (_) => setState(() => _pressed = true),
+      onTapUp: (_) {
+        setState(() => _pressed = false);
+        widget.onTap();
+      },
+      onTapCancel: () => setState(() => _pressed = false),
       child: Container(
-        width: 72,
+        width: 88,
         height: 72,
         alignment: Alignment.center,
-        child: Icon(
-          icon,
-          size: 28,
-          color: Theme.of(context).colorScheme.onSurface,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: widget.transparent
+              ? Colors.transparent
+              : _pressed
+                  ? const Color(0xFFDDDDDD)
+                  : const Color(0xFFF0F0F0),
         ),
+        child: widget.child,
       ),
     );
   }
