@@ -7,7 +7,7 @@ plugins {
 
 android {
     namespace = "com.example.nyatet_pesse"
-    compileSdk = flutter.compileSdkVersion
+    compileSdk = 37
     ndkVersion = flutter.ndkVersion
 
     compileOptions {

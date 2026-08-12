@@ -6,12 +6,12 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.provider.Settings
 import androidx.core.app.NotificationManagerCompat
-import io.flutter.embedding.android.FlutterActivity
+import io.flutter.embedding.android.FlutterFragmentActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.EventChannel
 import io.flutter.plugin.common.MethodChannel
 
-class MainActivity : FlutterActivity() {
+class MainActivity : FlutterFragmentActivity() {
     private val METHOD_CHANNEL = "com.example.nyatet_pesse/notification_method"
     private val EVENT_CHANNEL = "com.example.nyatet_pesse/notification_event"
 
@@ -55,13 +55,13 @@ class MainActivity : FlutterActivity() {
                     eventSink = events
                     val filter = IntentFilter(NyatetNotificationListener.ACTION_NOTIFICATION_POSTED)
                     // For Android 13/14, we might need RECEIVER_NOT_EXPORTED or RECEIVER_EXPORTED, but since this is internal broadcast it's fine
-                    context.registerReceiver(notificationReceiver, filter)
+                    this@MainActivity.registerReceiver(notificationReceiver, filter)
                 }
 
                 override fun onCancel(arguments: Any?) {
                     eventSink = null
                     try {
-                        context.unregisterReceiver(notificationReceiver)
+                        this@MainActivity.unregisterReceiver(notificationReceiver)
                     } catch (e: Exception) {
                         // Already unregistered
                     }

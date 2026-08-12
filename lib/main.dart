@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:nyatet_pesse/core/theme/app_theme.dart';
-import 'package:nyatet_pesse/features/auth/presentation/screens/pin_screen.dart';
+import 'package:nyatet_pesse/features/dashboard/presentation/screens/main_screen.dart';
+import 'package:nyatet_pesse/features/security/presentation/screens/app_lock_screen.dart';
 
 void main() {
   runApp(
@@ -19,7 +20,9 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'NyatetPesse',
       theme: AppTheme.lightTheme,
-      home: const PinScreen(),
+      home: const AppLockScreen(
+        child: MainScreen(),
+      ),
       debugShowCheckedModeBanner: false,
     );
   }
