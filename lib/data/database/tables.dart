@@ -40,6 +40,7 @@ class Transactions extends Table {
   TextColumn get type => text()(); // 'income', 'expense', 'transfer', 'top_up'
   RealColumn get amount => real()();
   IntColumn get accountId => integer().references(Accounts, #id)();
+  @ReferenceName('transferDestination')
   IntColumn get destinationAccountId => integer().nullable().references(Accounts, #id)(); // for transfer
   IntColumn get categoryId => integer().nullable().references(Categories, #id)();
   TextColumn get merchant => text().nullable()();
