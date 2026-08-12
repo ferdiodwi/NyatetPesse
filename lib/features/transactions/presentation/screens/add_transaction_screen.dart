@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:nyatet_pesse/features/transactions/presentation/providers/add_transaction_providers.dart';
+import 'package:intl/intl.dart';
+import 'package:nyatet_pesse/data/database/app_database.dart';
+import 'package:nyatet_pesse/features/transactions/presentation/providers/add_transaction_controller.dart';
 
 class AddTransactionScreen extends ConsumerStatefulWidget {
   const AddTransactionScreen({super.key});
@@ -25,6 +27,21 @@ class _AddTransactionScreenState extends ConsumerState<AddTransactionScreen> {
   @override
   Widget build(BuildContext context) {
     final transactionType = ref.watch(transactionTypeProvider);
+    final selectedAccount = ref.watch(selectedAccountProvider);
+    final selectedCategory = ref.watch(selectedCategoryProvider);
+    final selectedDate = ref.watch(selectedDateProvider);
+    
+    // Default select first account/category if null
+    ref.listen(accountsStreamProvider, (prev, next) {
+      if (next.hasValue && next.value!.isNotEmpty && ref.read(selectedAccountProvider) == null) {
+        Future.microtask(() => ref.read(selectedAccountProvider.notifier).state = next.value!.first);
+      }
+    });
+    ref.listen(categoriesStreamProvider(transactionType), (prev, next) {
+      if (next.hasValue && next.value!.isNotEmpty && ref.read(selectedCategoryProvider) == null) {
+        Future.microtask(() => ref.read(selectedCategoryProvider.notifier).state = next.value!.first);
+      }
+    });
 
     return Scaffold(
       appBar: AppBar(
@@ -49,7 +66,7 @@ class _AddTransactionScreenState extends ConsumerState<AddTransactionScreen> {
                   const SizedBox(height: 24),
                   _buildAmountInput(),
                   const SizedBox(height: 24),
-                  _buildFormFields(),
+                  _buildFormFields(transactionType, selectedAccount, selectedCategory, selectedDate),
                 ],
               ),
             ),
@@ -60,7 +77,7 @@ class _AddTransactionScreenState extends ConsumerState<AddTransactionScreen> {
     );
   }
 
-  Widget _buildSegmentedControl(TransactionType currentType) {
+  Widget _buildSegmentedControl(String currentType) {
     return Container(
       padding: const EdgeInsets.all(4),
       decoration: BoxDecoration(
@@ -71,18 +88,27 @@ class _AddTransactionScreenState extends ConsumerState<AddTransactionScreen> {
         children: [
           _buildSegmentButton(
             title: 'Pengeluaran',
-            isSelected: currentType == TransactionType.expense,
-            onTap: () => ref.read(transactionTypeProvider.notifier).state = TransactionType.expense,
+            isSelected: currentType == 'EXPENSE',
+            onTap: () {
+              ref.read(transactionTypeProvider.notifier).state = 'EXPENSE';
+              ref.read(selectedCategoryProvider.notifier).state = null; // reset category
+            },
           ),
           _buildSegmentButton(
             title: 'Pemasukan',
-            isSelected: currentType == TransactionType.income,
-            onTap: () => ref.read(transactionTypeProvider.notifier).state = TransactionType.income,
+            isSelected: currentType == 'INCOME',
+            onTap: () {
+              ref.read(transactionTypeProvider.notifier).state = 'INCOME';
+              ref.read(selectedCategoryProvider.notifier).state = null; // reset category
+            },
           ),
           _buildSegmentButton(
             title: 'Transfer',
-            isSelected: currentType == TransactionType.transfer,
-            onTap: () => ref.read(transactionTypeProvider.notifier).state = TransactionType.transfer,
+            isSelected: currentType == 'TRANSFER',
+            onTap: () {
+              ref.read(transactionTypeProvider.notifier).state = 'TRANSFER';
+              ref.read(selectedCategoryProvider.notifier).state = null; // reset category
+            },
           ),
         ],
       ),
@@ -171,7 +197,8 @@ class _AddTransactionScreenState extends ConsumerState<AddTransactionScreen> {
     );
   }
 
-  Widget _buildFormFields() {
+  Widget _buildFormFields(String type, Account? account, Category? category, DateTime date) {
+    final dateFormat = DateFormat('dd MMM yyyy, HH:mm');
     return Container(
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.surface,
@@ -185,15 +212,17 @@ class _AddTransactionScreenState extends ConsumerState<AddTransactionScreen> {
             iconBgColor: Theme.of(context).colorScheme.primaryContainer,
             iconColor: Theme.of(context).colorScheme.onPrimaryContainer,
             label: 'Akun',
-            value: 'BCA',
+            value: account?.name ?? 'Pilih Akun',
+            onTap: _showAccountPicker,
           ),
-          const Divider(height: 1),
-          _buildClickableField(
-            icon: Icons.restaurant,
+          if (type != 'TRANSFER') const Divider(height: 1),
+          if (type != 'TRANSFER') _buildClickableField(
+            icon: Icons.category,
             iconBgColor: Theme.of(context).colorScheme.errorContainer,
             iconColor: Theme.of(context).colorScheme.onErrorContainer,
             label: 'Kategori',
-            value: 'Makan & Minum',
+            value: category?.name ?? 'Pilih Kategori',
+            onTap: _showCategoryPicker,
           ),
           const Divider(height: 1),
           _buildClickableField(
@@ -201,7 +230,18 @@ class _AddTransactionScreenState extends ConsumerState<AddTransactionScreen> {
             iconBgColor: Theme.of(context).colorScheme.surfaceContainerHighest,
             iconColor: Theme.of(context).colorScheme.onSurfaceVariant,
             label: 'Tanggal & Waktu',
-            value: 'Hari ini, 12:45',
+            value: dateFormat.format(date),
+            onTap: () async {
+               final selected = await showDatePicker(
+                 context: context,
+                 initialDate: date,
+                 firstDate: DateTime(2000),
+                 lastDate: DateTime(2100),
+               );
+               if (selected != null) {
+                 ref.read(selectedDateProvider.notifier).state = selected;
+               }
+            },
           ),
           const Divider(height: 1),
           _buildInputField(
@@ -216,29 +256,69 @@ class _AddTransactionScreenState extends ConsumerState<AddTransactionScreen> {
             hint: 'Catatan (Opsional)',
             maxLines: 2,
           ),
-          const Divider(height: 1),
-          InkWell(
-            onTap: () {},
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Row(
-                children: [
-                  Icon(Icons.attach_file, color: Theme.of(context).colorScheme.primary),
-                  const SizedBox(width: 16),
-                  Text(
-                    'Tambah Lampiran',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w500,
-                      color: Theme.of(context).colorScheme.primary,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
         ],
       ),
+    );
+  }
+
+  void _showAccountPicker() {
+    showModalBottomSheet(
+      context: context,
+      builder: (context) {
+        return Consumer(
+          builder: (context, ref, child) {
+            final accountsAsync = ref.watch(accountsStreamProvider);
+            return accountsAsync.when(
+              data: (accounts) => ListView.builder(
+                itemCount: accounts.length,
+                itemBuilder: (context, index) {
+                  final acc = accounts[index];
+                  return ListTile(
+                    title: Text(acc.name),
+                    onTap: () {
+                      ref.read(selectedAccountProvider.notifier).state = acc;
+                      Navigator.pop(context);
+                    },
+                  );
+                },
+              ),
+              loading: () => const Center(child: CircularProgressIndicator()),
+              error: (e, st) => Center(child: Text(e.toString())),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  void _showCategoryPicker() {
+     final type = ref.read(transactionTypeProvider);
+     showModalBottomSheet(
+      context: context,
+      builder: (context) {
+        return Consumer(
+          builder: (context, ref, child) {
+            final categoriesAsync = ref.watch(categoriesStreamProvider(type));
+            return categoriesAsync.when(
+              data: (categories) => ListView.builder(
+                itemCount: categories.length,
+                itemBuilder: (context, index) {
+                  final cat = categories[index];
+                  return ListTile(
+                    title: Text(cat.name),
+                    onTap: () {
+                      ref.read(selectedCategoryProvider.notifier).state = cat;
+                      Navigator.pop(context);
+                    },
+                  );
+                },
+              ),
+              loading: () => const Center(child: CircularProgressIndicator()),
+              error: (e, st) => Center(child: Text(e.toString())),
+            );
+          },
+        );
+      },
     );
   }
 
@@ -248,9 +328,10 @@ class _AddTransactionScreenState extends ConsumerState<AddTransactionScreen> {
     required Color iconColor,
     required String label,
     required String value,
+    required VoidCallback onTap,
   }) {
     return InkWell(
-      onTap: () {},
+      onTap: onTap,
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Row(
@@ -335,6 +416,8 @@ class _AddTransactionScreenState extends ConsumerState<AddTransactionScreen> {
   }
 
   Widget _buildBottomAction() {
+    final state = ref.watch(addTransactionControllerProvider);
+    
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -344,7 +427,25 @@ class _AddTransactionScreenState extends ConsumerState<AddTransactionScreen> {
         ),
       ),
       child: ElevatedButton(
-        onPressed: () {},
+        onPressed: state.isLoading ? null : () async {
+          final amount = double.tryParse(_amountController.text);
+          if (amount == null || amount <= 0) {
+             ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Masukkan nominal yang valid')));
+             return;
+          }
+          final success = await ref.read(addTransactionControllerProvider.notifier).saveTransaction(
+            amount: amount,
+            merchant: _merchantController.text.isEmpty ? null : _merchantController.text,
+            note: _noteController.text.isEmpty ? null : _noteController.text,
+          );
+          
+          if (success && mounted) {
+             Navigator.pop(context);
+          } else if (mounted) {
+             final err = ref.read(addTransactionControllerProvider).error;
+             ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Gagal menyimpan: $err')));
+          }
+        },
         style: ElevatedButton.styleFrom(
           backgroundColor: Theme.of(context).colorScheme.primaryContainer,
           foregroundColor: Theme.of(context).colorScheme.onPrimaryContainer,
@@ -357,7 +458,10 @@ class _AddTransactionScreenState extends ConsumerState<AddTransactionScreen> {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.check_circle),
+            if (state.isLoading)
+              const SizedBox(width: 24, height: 24, child: CircularProgressIndicator())
+            else
+              const Icon(Icons.check_circle),
             const SizedBox(width: 8),
             Text(
               'Simpan Transaksi',

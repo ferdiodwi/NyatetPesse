@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:nyatet_pesse/features/dashboard/presentation/providers/dashboard_providers.dart';
+import 'package:nyatet_pesse/features/transactions/presentation/providers/add_transaction_controller.dart';
+import 'package:nyatet_pesse/data/repositories/repository_providers.dart';
 import 'package:intl/intl.dart';
 
 class BalanceCard extends ConsumerWidget {
@@ -11,16 +13,37 @@ class BalanceCard extends ConsumerWidget {
     final isVisible = ref.watch(isBalanceVisibleProvider);
     final NumberFormat currencyFormat = NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0);
 
-    const double totalBalance = 8750000;
-    const double totalIncome = 4500000;
-    const double totalExpense = 2350000;
+    final accountsAsync = ref.watch(accountsStreamProvider);
+    final transactionsAsync = ref.watch(transactionRepositoryProvider).watchRecentTransactions(limit: 100);
 
-    return Card(
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: BorderSide(color: Theme.of(context).colorScheme.outlineVariant),
-      ),
+    return accountsAsync.when(
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (e, st) => Center(child: Text(e.toString())),
+      data: (accounts) {
+        final totalBalance = accounts.fold<double>(0, (sum, acc) => sum + acc.currentBalance);
+        
+        return StreamBuilder(
+          stream: transactionsAsync,
+          builder: (context, snapshot) {
+            double totalIncome = 0;
+            double totalExpense = 0;
+            
+            if (snapshot.hasData) {
+              final now = DateTime.now();
+              for (var t in snapshot.data!) {
+                if (t.transactionDate.month == now.month && t.transactionDate.year == now.year) {
+                  if (t.type == 'INCOME') totalIncome += t.amount;
+                  if (t.type == 'EXPENSE') totalExpense += t.amount;
+                }
+              }
+            }
+
+            return Card(
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+                side: BorderSide(color: Theme.of(context).colorScheme.outlineVariant),
+              ),
       color: Theme.of(context).colorScheme.surface,
       child: Padding(
         padding: const EdgeInsets.all(16.0),
@@ -60,7 +83,7 @@ class BalanceCard extends ConsumerWidget {
             ),
             const SizedBox(height: 4),
             Text(
-              'Dari 5 akun',
+              'Dari ${accounts.length} akun',
               style: Theme.of(context).textTheme.labelSmall?.copyWith(
                 color: Theme.of(context).colorScheme.outline,
               ),
@@ -135,6 +158,10 @@ class BalanceCard extends ConsumerWidget {
           ],
         ),
       ),
+    );
+          },
+        );
+      },
     );
   }
 }

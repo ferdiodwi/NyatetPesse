@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:nyatet_pesse/features/dashboard/presentation/providers/dashboard_providers.dart';
+import 'package:nyatet_pesse/features/transactions/presentation/providers/add_transaction_controller.dart';
 import 'package:intl/intl.dart';
 
 class AccountHorizontalList extends ConsumerWidget {
@@ -11,16 +12,18 @@ class AccountHorizontalList extends ConsumerWidget {
     final isVisible = ref.watch(isBalanceVisibleProvider);
     final NumberFormat currencyFormat = NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0);
 
-    final accounts = [
-      {'name': 'BCA', 'balance': 4500000, 'icon': Icons.account_balance, 'color': const Color(0xFFe0e0ff), 'iconColor': const Color(0xFF000666)},
-      {'name': 'DANA', 'balance': 1250000, 'icon': Icons.account_balance_wallet, 'color': const Color(0xFFE3F2FD), 'iconColor': const Color(0xFF1565C0)},
-      {'name': 'OVO', 'balance': 750000, 'icon': Icons.account_balance_wallet, 'color': const Color(0xFFF3E5F5), 'iconColor': const Color(0xFF6A1B9A)},
-      {'name': 'GoPay', 'balance': 500000, 'icon': Icons.account_balance_wallet, 'color': const Color(0xFFE8F5E9), 'iconColor': const Color(0xFF2E7D32)},
-      {'name': 'Cash', 'balance': 1750000, 'icon': Icons.payments, 'color': Theme.of(context).colorScheme.surfaceContainerHigh, 'iconColor': Theme.of(context).colorScheme.onSurfaceVariant},
-    ];
+    final accountsAsync = ref.watch(accountsStreamProvider);
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+    return accountsAsync.when(
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (e, st) => Center(child: Text(e.toString())),
+      data: (accounts) {
+        if (accounts.isEmpty) {
+          return const SizedBox.shrink();
+        }
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -70,25 +73,25 @@ class AccountHorizontalList extends ConsumerWidget {
                       width: 32,
                       height: 32,
                       decoration: BoxDecoration(
-                        color: account['color'] as Color,
+                        color: Theme.of(context).colorScheme.primaryContainer,
                         shape: BoxShape.circle,
                       ),
                       child: Icon(
-                        account['icon'] as IconData,
+                        Icons.account_balance_wallet,
                         size: 18,
-                        color: account['iconColor'] as Color,
+                        color: Theme.of(context).colorScheme.onPrimaryContainer,
                       ),
                     ),
                     const Spacer(),
                     Text(
-                      account['name'] as String,
+                      account.name,
                       style: Theme.of(context).textTheme.labelSmall?.copyWith(
                         color: Theme.of(context).colorScheme.onSurfaceVariant,
                       ),
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      isVisible ? currencyFormat.format(account['balance']) : 'Rp ••••',
+                      isVisible ? currencyFormat.format(account.currentBalance) : 'Rp ••••',
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                         fontWeight: FontWeight.bold,
                       ),
@@ -100,6 +103,8 @@ class AccountHorizontalList extends ConsumerWidget {
           ),
         ),
       ],
+    );
+      },
     );
   }
 }

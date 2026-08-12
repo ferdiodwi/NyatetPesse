@@ -3,6 +3,7 @@ import 'package:nyatet_pesse/features/dashboard/presentation/widgets/account_hor
 import 'package:nyatet_pesse/features/dashboard/presentation/widgets/ai_detection_banner.dart';
 import 'package:nyatet_pesse/features/dashboard/presentation/widgets/balance_card.dart';
 import 'package:nyatet_pesse/features/dashboard/presentation/widgets/recent_transactions_list.dart';
+import 'package:nyatet_pesse/features/categories/presentation/screens/categories_screen.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -48,7 +49,13 @@ class HomeScreen extends StatelessWidget {
         actions: [
           IconButton(
             icon: const Icon(Icons.settings),
-            onPressed: () {},
+            tooltip: 'Pengaturan Kategori',
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const CategoriesScreen()),
+              );
+            },
             color: Theme.of(context).colorScheme.onSurface,
           ),
           const SizedBox(width: 8),

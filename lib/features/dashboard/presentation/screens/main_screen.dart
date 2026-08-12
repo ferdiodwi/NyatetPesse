@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:nyatet_pesse/features/dashboard/presentation/screens/home_screen.dart';
 import 'package:nyatet_pesse/features/transactions/presentation/screens/add_transaction_screen.dart';
+import 'package:nyatet_pesse/features/accounts/presentation/screens/accounts_screen.dart';
+import 'package:nyatet_pesse/features/transactions/presentation/screens/history_screen.dart';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
@@ -14,9 +16,9 @@ class _MainScreenState extends State<MainScreen> {
 
   final List<Widget> _pages = [
     const HomeScreen(),
-    const Center(child: Text('History')),
+    const HistoryScreen(),
     const Center(child: Text('Scan')),
-    const Center(child: Text('Budget')),
+    const AccountsScreen(), // Budget/Accounts Tab
     const Center(child: Text('Stats')),
   ];
 
@@ -62,7 +64,7 @@ class _MainScreenState extends State<MainScreen> {
           NavigationDestination(
             icon: Icon(Icons.account_balance_wallet_outlined),
             selectedIcon: Icon(Icons.account_balance_wallet),
-            label: 'Budget',
+            label: 'Akun',
           ),
           NavigationDestination(
             icon: Icon(Icons.query_stats_outlined),
