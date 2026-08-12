@@ -3,6 +3,7 @@ import 'package:nyatet_pesse/features/dashboard/presentation/widgets/account_hor
 import 'package:nyatet_pesse/features/dashboard/presentation/widgets/ai_detection_banner.dart';
 import 'package:nyatet_pesse/features/dashboard/presentation/widgets/balance_card.dart';
 import 'package:nyatet_pesse/features/dashboard/presentation/widgets/recent_transactions_list.dart';
+import 'package:nyatet_pesse/features/reports/presentation/widgets/budget_summary_widget.dart';
 import 'package:nyatet_pesse/features/transactions/presentation/screens/inbox_screen.dart';
 import 'package:nyatet_pesse/features/settings/presentation/screens/settings_screen.dart';
 
@@ -81,6 +82,8 @@ class HomeScreen extends StatelessWidget {
           AccountHorizontalList(),
           SizedBox(height: 24),
           AiDetectionBanner(),
+          SizedBox(height: 24),
+          BudgetSummaryWidget(),
           SizedBox(height: 24),
           RecentTransactionsList(),
           SizedBox(height: 80), // Space for FAB
