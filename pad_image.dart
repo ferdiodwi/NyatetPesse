@@ -2,7 +2,7 @@ import 'dart:io';
 import 'package:image/image.dart' as img;
 
 void main() {
-  final file = File('assets/images/icon_new.png');
+  final file = File('assets/images/icon_baru.png');
   final bytes = file.readAsBytesSync();
   final original = img.decodeImage(bytes);
   
@@ -29,6 +29,6 @@ void main() {
   img.compositeImage(padded, original, dstX: dstX, dstY: dstY);
   
   final outBytes = img.encodePng(padded);
-  File('assets/images/icon_new_padded.png').writeAsBytesSync(outBytes);
+  File('assets/images/icon_baru_padded.png').writeAsBytesSync(outBytes);
   print('Success');
 }

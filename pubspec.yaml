@@ -79,22 +79,26 @@ flutter:
 
   # To add assets to your application, add an assets section, like this:
   assets:
-    - assets/images/icon.png
-    - assets/images/icon_new.png
-    - assets/images/icon_new_padded.png
+    # Ikon asli tanpa padding (untuk dipakai di UI dalam aplikasi, misal di Layar Kunci)
+    - assets/images/icon_baru.png
+    # Ikon dengan padding background putih (untuk Android Launcher dan Splash Screen)
+    - assets/images/icon_baru_padded.png
 
 flutter_launcher_icons:
   android: true
   ios: false
-  image_path: "assets/images/icon_new.png"
+  # Ikon normal untuk fallback
+  image_path: "assets/images/icon_baru.png"
   adaptive_icon_background: "#FFFFFF"
-  adaptive_icon_foreground: "assets/images/icon_new_padded.png"
+  # Ikon adaptif Android harus pakai yang di-padding agar tidak nge-zoom
+  adaptive_icon_foreground: "assets/images/icon_baru_padded.png"
 
 flutter_native_splash:
   color: "#FFFFFF"
-  image: "assets/images/icon_new_padded.png"
+  # Splash screen juga pakai yang ada padding agar proporsional
+  image: "assets/images/icon_baru_padded.png"
   android_12:
-    image: "assets/images/icon_new_padded.png"
+    image: "assets/images/icon_baru_padded.png"
     icon_background_color: "#FFFFFF"
 
   # An image asset can refer to one or more resolution-specific "variants", see

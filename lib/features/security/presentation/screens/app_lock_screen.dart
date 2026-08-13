@@ -122,7 +122,7 @@ class _AppLockScreenState extends ConsumerState<AppLockScreen>
                   ),
                   clipBehavior: Clip.antiAlias,
                   child: Image.asset(
-                    'assets/images/icon_new.png',
+                    'assets/images/icon_baru.png',
                     fit: BoxFit.cover,
                   ),
                 ),
