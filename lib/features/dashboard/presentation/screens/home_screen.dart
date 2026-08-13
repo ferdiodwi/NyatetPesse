@@ -1,17 +1,22 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:nyatet_pesse/features/dashboard/presentation/widgets/account_horizontal_list.dart';
 import 'package:nyatet_pesse/features/dashboard/presentation/widgets/ai_detection_banner.dart';
 import 'package:nyatet_pesse/features/dashboard/presentation/widgets/balance_card.dart';
 import 'package:nyatet_pesse/features/dashboard/presentation/widgets/recent_transactions_list.dart';
 import 'package:nyatet_pesse/features/reports/presentation/widgets/budget_summary_widget.dart';
-import 'package:nyatet_pesse/features/transactions/presentation/screens/inbox_screen.dart';
+import 'package:nyatet_pesse/features/inbox/presentation/screens/inbox_screen.dart';
+import 'package:nyatet_pesse/features/inbox/presentation/providers/inbox_controller.dart';
 import 'package:nyatet_pesse/features/settings/presentation/screens/settings_screen.dart';
 
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final pendingItems = ref.watch(pendingInboxProvider).valueOrNull ?? [];
+    final unreadCount = pendingItems.length;
+
     return Scaffold(
       appBar: AppBar(
         titleSpacing: 16,
@@ -50,7 +55,11 @@ class HomeScreen extends StatelessWidget {
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.notifications_active_outlined),
+            icon: Badge(
+              isLabelVisible: unreadCount > 0,
+              label: Text(unreadCount.toString()),
+              child: const Icon(Icons.notifications_active_outlined),
+            ),
             tooltip: 'Transaction Inbox',
             onPressed: () {
               Navigator.push(
@@ -74,8 +83,16 @@ class HomeScreen extends StatelessWidget {
           const SizedBox(width: 8),
         ],
       ),
-      body: ListView(
-        padding: const EdgeInsets.all(16.0),
+      body: RefreshIndicator(
+        onRefresh: () async {
+          ref.invalidate(pendingInboxProvider);
+          // Assuming accountsStreamProvider is used in children
+          // We just add a small delay to simulate network/db refresh
+          await Future.delayed(const Duration(milliseconds: 600));
+        },
+        child: ListView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.all(16.0),
         children: const [
           BalanceCard(),
           SizedBox(height: 24),
@@ -88,7 +105,8 @@ class HomeScreen extends StatelessWidget {
           RecentTransactionsList(),
           SizedBox(height: 80), // Space for FAB
         ],
-      ),
-    );
+      ), // This closes ListView
+      ), // This closes RefreshIndicator
+    ); // This closes Scaffold
   }
 }

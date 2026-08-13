@@ -135,7 +135,9 @@ class _ScannerScreenState extends State<ScannerScreen> with WidgetsBindingObserv
             builder: (context) => AddTransactionScreen(
               initialAmount: parsed.amount,
               initialType: parsed.type,
-              initialNote: 'Merchant: ${parsed.merchant ?? "-"}\n\nRAW OCR:\n${parsed.rawText}',
+              initialMerchant: parsed.merchant,
+              initialDate: parsed.date,
+              initialNote: 'RAW OCR:\n${parsed.rawText}',
             ),
           ),
         );

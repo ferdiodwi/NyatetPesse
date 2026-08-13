@@ -91,8 +91,14 @@ class HistoryScreen extends ConsumerWidget {
                   data: (accounts) {
                     final accountMap = {for (var a in accounts) a.id: a};
                     
-                    return ListView.builder(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    return RefreshIndicator(
+                      onRefresh: () async {
+                        ref.invalidate(accountsStreamProvider);
+                        await Future.delayed(const Duration(milliseconds: 600));
+                      },
+                      child: ListView.builder(
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                       itemCount: sortedKeys.length,
                       itemBuilder: (context, index) {
                         final dateKey = sortedKeys[index];
@@ -179,7 +185,8 @@ class HistoryScreen extends ConsumerWidget {
                           ],
                         );
                       },
-                    );
+                    ), // closes ListView.builder
+                    ); // closes RefreshIndicator
                   }
                 );
               },

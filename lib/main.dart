@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:nyatet_pesse/core/theme/app_theme.dart';
 import 'package:nyatet_pesse/features/dashboard/presentation/screens/main_screen.dart';
 import 'package:nyatet_pesse/features/security/presentation/screens/app_lock_screen.dart';
+import 'package:nyatet_pesse/notification/services/notification_service.dart';
 
 import 'package:intl/date_symbol_data_local.dart';
 
@@ -16,11 +17,14 @@ void main() async {
   );
 }
 
-class MyApp extends StatelessWidget {
+class MyApp extends ConsumerWidget {
   const MyApp({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    // Start listening to notifications from native side
+    ref.watch(notificationServiceProvider).startListening();
+
     return MaterialApp(
       title: 'NyatetPesse',
       theme: AppTheme.lightTheme,

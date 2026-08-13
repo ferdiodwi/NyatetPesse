@@ -13,6 +13,10 @@ class AccountRepository {
     return _db.into(_db.accounts).insert(account);
   }
 
+  Future<Account> getAccountById(int id) {
+    return (_db.select(_db.accounts)..where((t) => t.id.equals(id))).getSingle();
+  }
+
   Future<bool> updateAccount(Account account) {
     return _db.update(_db.accounts).replace(account);
   }

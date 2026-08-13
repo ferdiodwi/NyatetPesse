@@ -4,17 +4,28 @@ import 'package:nyatet_pesse/features/transactions/presentation/screens/add_tran
 import 'package:nyatet_pesse/features/accounts/presentation/screens/accounts_screen.dart';
 import 'package:nyatet_pesse/features/transactions/presentation/screens/history_screen.dart';
 import 'package:nyatet_pesse/features/transactions/presentation/screens/scanner_screen.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:nyatet_pesse/features/reports/presentation/screens/stats_screen.dart';
+import 'package:nyatet_pesse/features/transactions/presentation/providers/recurring_controller.dart';
 
-class MainScreen extends StatefulWidget {
+class MainScreen extends ConsumerStatefulWidget {
   const MainScreen({super.key});
 
   @override
-  State<MainScreen> createState() => _MainScreenState();
+  ConsumerState<MainScreen> createState() => _MainScreenState();
 }
 
-class _MainScreenState extends State<MainScreen> {
+class _MainScreenState extends ConsumerState<MainScreen> {
   int _currentIndex = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    // Process any due recurring transactions when app opens
+    Future.microtask(() {
+      ref.read(recurringControllerProvider.notifier).processDueTransactions();
+    });
+  }
 
   final List<Widget> _pages = [
     const HomeScreen(),

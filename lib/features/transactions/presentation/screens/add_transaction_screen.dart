@@ -8,6 +8,8 @@ class AddTransactionScreen extends ConsumerStatefulWidget {
   final double? initialAmount;
   final String? initialType;
   final String? initialNote;
+  final String? initialMerchant;
+  final DateTime? initialDate;
   final VoidCallback? onSaved;
 
   const AddTransactionScreen({
@@ -15,6 +17,8 @@ class AddTransactionScreen extends ConsumerStatefulWidget {
     this.initialAmount,
     this.initialType,
     this.initialNote,
+    this.initialMerchant,
+    this.initialDate,
     this.onSaved,
   });
 
@@ -39,9 +43,15 @@ class _AddTransactionScreenState extends ConsumerState<AddTransactionScreen> {
     if (widget.initialNote != null) {
       _noteController.text = widget.initialNote!;
     }
+    if (widget.initialMerchant != null) {
+      _merchantController.text = widget.initialMerchant!;
+    }
     
     if (widget.initialType != null) {
        Future.microtask(() => ref.read(transactionTypeProvider.notifier).state = widget.initialType!);
+    }
+    if (widget.initialDate != null) {
+       Future.microtask(() => ref.read(selectedDateProvider.notifier).state = widget.initialDate!);
     }
   }
 
