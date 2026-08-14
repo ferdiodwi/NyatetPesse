@@ -18,7 +18,10 @@ class NyatetNotificationListener : NotificationListenerService() {
         val extras = notification.extras
 
         val title = extras.getString(Notification.EXTRA_TITLE) ?: ""
-        val text = extras.getCharSequence(Notification.EXTRA_TEXT)?.toString() ?: ""
+        val textStr = extras.getCharSequence(Notification.EXTRA_TEXT)?.toString() ?: ""
+        val bigTextStr = extras.getCharSequence(Notification.EXTRA_BIG_TEXT)?.toString() ?: ""
+        
+        val text = if (bigTextStr.isNotEmpty()) "$textStr\n$bigTextStr" else textStr
 
         // Broadcast the notification to MainActivity
         val intent = Intent(ACTION_NOTIFICATION_POSTED)

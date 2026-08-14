@@ -20,9 +20,10 @@ class OcrParser {
 
       // Look for amount (usually near 'total', 'jumlah', 'tagihan', or 'rp')
       if (amount == null) {
-        if (line.contains('total') || line.contains('jumlah') || line.contains('tagihan') || line.contains('rp')) {
+        final lineNoSpace = line.replaceAll(RegExp(r'\s+'), '').replaceAll('0', 'o');
+        if (lineNoSpace.contains('total') || lineNoSpace.contains('jumlah') || lineNoSpace.contains('tagihan') || lineNoSpace.contains('rp')) {
           // Exclude subtotal or tax if possible
-          if (!line.contains('sub') && !line.contains('pajak') && !line.contains('tax')) {
+          if (!lineNoSpace.contains('sub') && !lineNoSpace.contains('pajak') && !lineNoSpace.contains('tax')) {
             final possibleAmount = _extractAmountFromLine(line);
             if (possibleAmount != null && possibleAmount > 0) {
               amount = possibleAmount;
@@ -54,7 +55,7 @@ class OcrParser {
       // Ignore common receipt headers or locations
       if (lower.contains('jl.') || lower.contains('jalan') || lower.contains('telp') || 
           lower.contains('npwp') || lower.contains('struk') || lower.contains('invoice') ||
-          lower.contains('kasir') || lower.contains('tanggal') || RegExp(r'\d').hasMatch(possibleMerchant)) {
+          lower.contains('kasir') || lower.contains('tanggal') || RegExp(r'\d{4,}').hasMatch(possibleMerchant)) {
         continue;
       }
       
@@ -91,14 +92,17 @@ class OcrParser {
     final cleanLine = line.replaceAll(RegExp(r'\s+'), '');
     
     final regex = RegExp(r'(?:rp)?(?:idr)?(\d{1,3}(?:[.,]\d{3})*(?:[.,]\d+)?)\b', caseSensitive: false);
-    final match = regex.firstMatch(cleanLine);
     
-    if (match != null) {
+    for (final match in regex.allMatches(cleanLine)) {
       final amountStr = match.group(1);
       if (amountStr != null) {
         String cleanStr = amountStr.replaceAll('.', '');
         cleanStr = cleanStr.replaceAll(',', '.'); // if decimals exist
-        return double.tryParse(cleanStr);
+        final val = double.tryParse(cleanStr);
+        // Exclude tiny numbers like quantity or item numbers
+        if (val != null && val > 100) {
+          return val;
+        }
       }
     }
     return null;

@@ -22,6 +22,7 @@ class _ScannerScreenState extends State<ScannerScreen> with WidgetsBindingObserv
   bool _isProcessing = false;
   bool _isCameraInitialized = false;
   bool _isCameraPermissionGranted = false;
+  bool _isFlashOn = false;
 
   @override
   void initState() {
@@ -306,12 +307,23 @@ class _ScannerScreenState extends State<ScannerScreen> with WidgetsBindingObserv
                       ),
                     ),
 
-                    // Flash Toggle (Placeholder or functional later)
+                    // Flash Toggle
                     IconButton(
-                      onPressed: () {
-                         // Optional: Implement flash toggle
+                      onPressed: () async {
+                        if (_cameraController != null && _cameraController!.value.isInitialized) {
+                          setState(() {
+                            _isFlashOn = !_isFlashOn;
+                          });
+                          await _cameraController!.setFlashMode(
+                            _isFlashOn ? FlashMode.torch : FlashMode.off,
+                          );
+                        }
                       },
-                      icon: const Icon(Icons.flash_off, color: Colors.white, size: 32),
+                      icon: Icon(
+                        _isFlashOn ? Icons.flash_on : Icons.flash_off, 
+                        color: _isFlashOn ? Theme.of(context).colorScheme.primary : Colors.white, 
+                        size: 32,
+                      ),
                     ),
                   ],
                 ),

@@ -9,7 +9,7 @@ class TransactionParser {
     final combinedText = '$lowerTitle $lowerText';
 
     // Whitelist allowed financial/e-wallet apps to prevent reading system notifications
-    final allowedPackages = ['id.dana', 'ovo.id', 'com.gojek.app', 'com.shopee.id', 'com.bca', 'com.bankmandiri'];
+    final allowedPackages = ['id.dana', 'ovo.id', 'com.gojek.app', 'com.shopee.id', 'com.bca', 'com.bankmandiri', 'seabank', 'bankbke'];
     bool isAllowed = false;
     for (final pkg in allowedPackages) {
       if (packageName.toLowerCase().contains(pkg)) {
@@ -78,7 +78,7 @@ class TransactionParser {
     if (text.contains('berhasil top up') || text.contains('top up berhasil') || text.contains('isi saldo')) {
       return 'top_up';
     }
-    if (text.contains('berhasil transfer') || text.contains('kirim uang') || text.contains('pembayaran') || text.contains('bayar')) {
+    if (text.contains('berhasil transfer') || text.contains('melakukan transfer') || text.contains('kirim uang') || text.contains('pembayaran') || text.contains('bayar')) {
       return 'expense';
     }
     if (text.contains('menerima') || text.contains('masuk') || text.contains('terima dana') || text.contains('uang masuk')) {
@@ -108,6 +108,18 @@ class TransactionParser {
       final regex = RegExp(r'untuk\s+(.*?)\.', caseSensitive: false);
       final match = regex.firstMatch(text);
       if (match != null) return match.group(1)?.trim();
+    }
+
+    if (packageName.contains('seabank') || packageName.contains('bankbke')) {
+      // SeaBank Expense: "...transfer senilai RpX kepada [Merchant] pada..."
+      final regexExpense = RegExp(r'kepada\s+(.*?)\s+pada', caseSensitive: false);
+      final matchExpense = regexExpense.firstMatch(text);
+      if (matchExpense != null) return matchExpense.group(1)?.trim();
+
+      // SeaBank Income: "...transfer saldo senilai RpX dari [Merchant]."
+      final regexIncome = RegExp(r'dari\s+(.*?)\.', caseSensitive: false);
+      final matchIncome = regexIncome.firstMatch(text);
+      if (matchIncome != null) return matchIncome.group(1)?.trim();
     }
 
     return null; // Fallback, let user fill it in or ML model later

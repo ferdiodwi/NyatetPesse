@@ -47,7 +47,7 @@ class ExportService {
     }
 
     // Convert to CSV
-    String csvString = ListToCsvConverter().convert(csvData);
+    String csvString = Csv().encode(csvData);
 
     // Get temp directory to save the file
     final tempDir = await getTemporaryDirectory();

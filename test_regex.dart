@@ -1,12 +1,18 @@
 void main() {
-  final text = "Pembayaran Rp 150.000 ke MCDONALDS berhasil";
-  final regex = RegExp(r'(?:rp\s*\.?\s*)?(\d{1,3}(?:\.\d{3})*(?:,\d{2})?)', caseSensitive: false);
-  final match = regex.firstMatch(text);
+  String line = "jumlah : 5, rp 10.000";
+  final cleanLine = line.replaceAll(RegExp(r'\s+'), '');
+  final regex = RegExp(r'(?:rp)?(?:idr)?(\d{1,3}(?:[.,]\d{3})*(?:[.,]\d+)?)\b', caseSensitive: false);
   
-  if (match != null && match.groupCount >= 1) {
-    String rawAmount = match.group(1)!;
-    print("Match: $rawAmount");
-  } else {
-    print("No match");
+  for (final match in regex.allMatches(cleanLine)) {
+    final amountStr = match.group(1);
+    if (amountStr != null) {
+      String cleanStr = amountStr.replaceAll('.', '');
+      cleanStr = cleanStr.replaceAll(',', '.');
+      final val = double.tryParse(cleanStr);
+      if (val != null && val > 100) {
+        print("Found: $val");
+        return;
+      }
+    }
   }
 }
