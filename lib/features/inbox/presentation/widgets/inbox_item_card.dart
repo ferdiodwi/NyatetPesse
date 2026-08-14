@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:drift/drift.dart' show Value;
+import 'package:nyatet_pesse/core/theme/app_theme.dart';
 import 'package:nyatet_pesse/data/database/app_database.dart';
 import 'package:nyatet_pesse/features/inbox/domain/models/parsed_transaction.dart';
 import 'package:nyatet_pesse/features/inbox/presentation/providers/inbox_controller.dart';
@@ -10,7 +11,6 @@ import 'package:nyatet_pesse/data/repositories/repository_providers.dart';
 
 class InboxItemCard extends ConsumerWidget {
   final InboxItem item;
-
   const InboxItemCard({super.key, required this.item});
 
   @override
@@ -19,127 +19,242 @@ class InboxItemCard extends ConsumerWidget {
     if (item.extractedData != null) {
       try {
         parsed = ParsedTransaction.fromJson(jsonDecode(item.extractedData!));
-      } catch (e) {
-        print('Error decoding extractedData: $e');
-      }
+      } catch (_) {}
     }
 
     final currencyFormat = NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0);
+    final isIncome = parsed?.type == 'income';
+    final typeColor = isIncome ? AppTheme.income : AppTheme.expense;
+    final typeIcon = isIncome ? Icons.arrow_downward_rounded : Icons.arrow_upward_rounded;
 
-    return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+    // Shorten package name for display
+    String sourceLabel = item.sourceApp ?? 'Notifikasi';
+    if (sourceLabel.contains('bankbke') || sourceLabel.contains('seabank')) {
+      sourceLabel = 'SeaBank';
+    } else if (sourceLabel.contains('dana')) {
+      sourceLabel = 'DANA';
+    } else if (sourceLabel.contains('ovo')) {
+      sourceLabel = 'OVO';
+    } else if (sourceLabel.contains('gojek')) {
+      sourceLabel = 'GoPay';
+    } else if (sourceLabel.contains('shopee')) {
+      sourceLabel = 'ShopeePay';
+    } else if (sourceLabel.contains('bca')) {
+      sourceLabel = 'BCA';
+    } else if (sourceLabel.contains('mandiri')) {
+      sourceLabel = 'Mandiri';
+    }
+
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+      decoration: BoxDecoration(
+        color: AppTheme.surface,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: AppTheme.cardShadow,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // ── Header row ──────────────────────────────────────────────────
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+            child: Row(
               children: [
-                Row(
-                  children: [
-                    Icon(
-                      parsed?.type == 'income' ? Icons.arrow_downward : Icons.arrow_upward,
-                      color: parsed?.type == 'income' ? Colors.green : Colors.red,
-                      size: 20,
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      item.sourceApp ?? 'Notifikasi',
-                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                    ),
-                  ],
+                Container(
+                  width: 38,
+                  height: 38,
+                  decoration: BoxDecoration(
+                    color: typeColor.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(11),
+                  ),
+                  child: Icon(typeIcon, color: typeColor, size: 18),
                 ),
-                Text(
-                  DateFormat('dd MMM HH:mm').format(item.detectedAt),
-                  style: const TextStyle(color: Colors.grey, fontSize: 12),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        sourceLabel,
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                          color: AppTheme.textPrimary,
+                        ),
+                      ),
+                      Text(
+                        DateFormat('dd MMM, HH:mm').format(item.detectedAt),
+                        style: const TextStyle(fontSize: 11.5, color: AppTheme.textSecondary),
+                      ),
+                    ],
+                  ),
                 ),
+                // Confidence badge
+                if (parsed != null)
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: parsed.confidenceScore > 0.8
+                          ? AppTheme.income.withValues(alpha: 0.1)
+                          : Colors.orange.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      '${(parsed.confidenceScore * 100).toInt()}%',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: parsed.confidenceScore > 0.8 ? AppTheme.income : Colors.orange,
+                      ),
+                    ),
+                  ),
               ],
             ),
-            const SizedBox(height: 12),
-            if (parsed != null) ...[
-              Text(
-                parsed.merchant ?? 'Merchant Tidak Diketahui',
-                style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500),
+          ),
+
+          const SizedBox(height: 12),
+          Divider(height: 1, color: AppTheme.borderColor.withValues(alpha: 0.5)),
+          const SizedBox(height: 12),
+
+          // ── Transaction detail ───────────────────────────────────────────
+          if (parsed != null)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text('Merchant', style: TextStyle(fontSize: 11, color: AppTheme.textSecondary)),
+                        const SizedBox(height: 2),
+                        Text(
+                          parsed.merchant ?? '—',
+                          style: const TextStyle(
+                            fontSize: 14.5,
+                            fontWeight: FontWeight.w600,
+                            color: AppTheme.textPrimary,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ),
+                  ),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      const Text('Nominal', style: TextStyle(fontSize: 11, color: AppTheme.textSecondary)),
+                      const SizedBox(height: 2),
+                      Text(
+                        currencyFormat.format(parsed.amount),
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                          color: typeColor,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
               ),
-              const SizedBox(height: 4),
-              Text(
-                currencyFormat.format(parsed.amount),
-                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.blue),
+            )
+          else
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    item.rawText,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontSize: 13, color: AppTheme.textPrimary, height: 1.4),
+                  ),
+                  const SizedBox(height: 6),
+                  Row(
+                    children: [
+                      Icon(Icons.warning_amber_rounded, size: 14, color: Colors.orange.shade600),
+                      const SizedBox(width: 4),
+                      Text(
+                        'Gagal memproses otomatis',
+                        style: TextStyle(fontSize: 12, color: Colors.orange.shade600, fontWeight: FontWeight.w500),
+                      ),
+                    ],
+                  ),
+                ],
               ),
-              const SizedBox(height: 8),
-              LinearProgressIndicator(
-                value: parsed.confidenceScore,
-                backgroundColor: Colors.grey[200],
-                color: parsed.confidenceScore > 0.8 ? Colors.green : Colors.orange,
-              ),
-              const SizedBox(height: 4),
-              Text(
-                'Akurasi: ${(parsed.confidenceScore * 100).toInt()}%',
-                style: const TextStyle(fontSize: 10, color: Colors.grey),
-              ),
-            ] else ...[
-              Text(
-                item.rawText,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(fontSize: 14),
-              ),
-              const SizedBox(height: 8),
-              const Text(
-                'Gagal memproses transaksi otomatis.',
-                style: TextStyle(fontSize: 12, color: Colors.red),
-              ),
-            ],
-            const SizedBox(height: 16),
-            const Divider(),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.end,
+            ),
+
+          const SizedBox(height: 16),
+          Divider(height: 1, color: AppTheme.borderColor.withValues(alpha: 0.5)),
+
+          // ── Action buttons ───────────────────────────────────────────────
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
+            child: Row(
               children: [
-                TextButton.icon(
-                  onPressed: () {
-                    ref.read(inboxControllerProvider.notifier).rejectTransaction(item);
-                  },
-                  icon: const Icon(Icons.delete_outline, color: Colors.red),
-                  label: const Text('Hapus', style: TextStyle(color: Colors.red)),
+                Expanded(
+                  child: TextButton(
+                    onPressed: () => ref.read(inboxControllerProvider.notifier).rejectTransaction(item),
+                    style: TextButton.styleFrom(
+                      foregroundColor: AppTheme.expense,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      padding: const EdgeInsets.symmetric(vertical: 10),
+                    ),
+                    child: const Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.delete_outline_rounded, size: 16),
+                        SizedBox(width: 6),
+                        Text('Hapus', style: TextStyle(fontWeight: FontWeight.w600)),
+                      ],
+                    ),
+                  ),
                 ),
                 const SizedBox(width: 8),
-                ElevatedButton.icon(
-                  onPressed: () async {
-                    final controller = ref.read(inboxControllerProvider.notifier);
-                    final accounts = await ref.read(accountRepositoryProvider).watchAllAccounts().first;
-                    
-                    final matchedAccountId = await _findOrCreateAccountId(context, ref, accounts, item.sourceApp);
-                    
-                    if (matchedAccountId != 0) {
-                      controller.confirmTransaction(
-                        item,
-                        accountId: matchedAccountId,
-                        amount: parsed?.amount ?? 0,
-                        type: parsed?.type ?? 'expense',
-                        merchant: parsed?.merchant,
-                      );
-                    } else {
-                      if (context.mounted) {
+                Expanded(
+                  flex: 2,
+                  child: ElevatedButton(
+                    onPressed: () async {
+                      final controller = ref.read(inboxControllerProvider.notifier);
+                      final accounts = await ref.read(accountRepositoryProvider).watchAllAccounts().first;
+                      final matchedAccountId = await _findOrCreateAccountId(context, ref, accounts, item.sourceApp);
+
+                      if (matchedAccountId != 0 && context.mounted) {
+                        controller.confirmTransaction(
+                          item,
+                          accountId: matchedAccountId,
+                          amount: parsed?.amount ?? 0,
+                          type: parsed?.type ?? 'expense',
+                          merchant: parsed?.merchant,
+                        );
+                      } else if (context.mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(content: Text('Anda belum memiliki Akun/Dompet sama sekali!')),
                         );
                       }
-                    }
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.green,
-                    foregroundColor: Colors.white,
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppTheme.income,
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      padding: const EdgeInsets.symmetric(vertical: 10),
+                    ),
+                    child: const Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.check_rounded, size: 16),
+                        SizedBox(width: 6),
+                        Text('Simpan Transaksi', style: TextStyle(fontWeight: FontWeight.w600)),
+                      ],
+                    ),
                   ),
-                  icon: const Icon(Icons.check),
-                  label: const Text('Simpan'),
                 ),
               ],
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -148,11 +263,9 @@ class InboxItemCard extends ConsumerWidget {
     if (sourceApp == null) return accounts.isNotEmpty ? accounts.first.id : 0;
 
     final sourceLower = sourceApp.toLowerCase();
-    
-    // Tentukan kata kunci pencarian dan nama default jika akun belum ada
     List<String> keywords = [];
     String? defaultName;
-    
+
     if (sourceLower.contains('seabank') || sourceLower.contains('bankbke')) {
       keywords = ['seabank', 'sea bank', 'bke'];
       defaultName = 'SeaBank';
@@ -176,28 +289,23 @@ class InboxItemCard extends ConsumerWidget {
       defaultName = 'Mandiri';
     }
 
-    // Cari akun yang namanya mengandung salah satu kata kunci
     for (final keyword in keywords) {
       for (final account in accounts) {
-        if (account.name.toLowerCase().contains(keyword)) {
-          return account.id; // Ketemu!
-        }
+        if (account.name.toLowerCase().contains(keyword)) return account.id;
       }
     }
 
-    // Jika tidak ketemu tapi kita tahu bank/ewallet apa ini, buat otomatis!
     if (defaultName != null) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Akun $defaultName belum ada. Sistem membuat otomatis!')),
         );
       }
-      
       final repo = ref.read(accountRepositoryProvider);
       final newId = await repo.addAccount(
         AccountsCompanion.insert(
           name: defaultName,
-          type: 'E-WALLET', // Default type for auto-created accounts
+          type: 'E-WALLET',
           currentBalance: Value(0.0),
           createdAt: DateTime.now(),
           updatedAt: Value(DateTime.now()),
@@ -206,7 +314,6 @@ class InboxItemCard extends ConsumerWidget {
       return newId;
     }
 
-    // Jika tidak dikenali, kembali ke akun pertama (default)
     return accounts.isNotEmpty ? accounts.first.id : 0;
   }
 }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:nyatet_pesse/core/theme/app_theme.dart';
 import 'package:nyatet_pesse/data/repositories/repository_providers.dart';
 import 'package:nyatet_pesse/data/database/app_database.dart';
 import 'package:nyatet_pesse/features/transactions/presentation/providers/add_transaction_controller.dart';
@@ -12,189 +13,222 @@ class RecentTransactionsList extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final transactionsAsync = ref.watch(transactionRepositoryProvider).watchRecentTransactions(limit: 5);
     final accountsAsync = ref.watch(accountsStreamProvider);
-    // Note: categories could also be fetched here for accurate names/icons.
-    
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          crossAxisAlignment: CrossAxisAlignment.end,
           children: [
-            Text(
+            const Text(
               'Transaksi Terakhir',
-              style: Theme.of(context).textTheme.headlineMedium,
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                color: AppTheme.textPrimary,
+                letterSpacing: -0.2,
+              ),
             ),
             TextButton(
               onPressed: () {},
               style: TextButton.styleFrom(
-                padding: EdgeInsets.zero,
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 minimumSize: Size.zero,
                 tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                foregroundColor: AppTheme.primary,
               ),
-              child: Text(
+              child: const Text(
                 'Lihat Semua',
-                style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                  color: Theme.of(context).colorScheme.outline,
-                ),
+                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
               ),
             ),
           ],
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 12),
         StreamBuilder<List<TransactionEntity>>(
           stream: transactionsAsync,
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
-              return const Center(child: CircularProgressIndicator());
+              return const _LoadingSkeleton();
             }
             if (snapshot.hasError) {
-              return Center(child: Text(snapshot.error.toString()));
+              return const SizedBox.shrink();
             }
-            
+
             final transactions = snapshot.data ?? [];
             if (transactions.isEmpty) {
-              return const Center(child: Padding(padding: EdgeInsets.all(16), child: Text('Belum ada transaksi')));
+              return _EmptyState();
             }
-            
+
             return accountsAsync.when(
-              loading: () => const Center(child: CircularProgressIndicator()),
+              loading: () => const _LoadingSkeleton(),
               error: (e, st) => const SizedBox.shrink(),
               data: (accounts) {
                 final accountMap = {for (var a in accounts) a.id: a};
-                
-                return ListView.builder(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  itemCount: transactions.length,
-                  itemBuilder: (context, index) {
-                    final t = transactions[index];
-                    final account = accountMap[t.accountId];
-                    final accountName = account?.name ?? 'Unknown';
-                    
-                    final isIncome = t.type == 'INCOME';
-                    final isExpense = t.type == 'EXPENSE';
-                    
-                    final NumberFormat currencyFormat = NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0);
-                    final sign = isExpense ? '- ' : (isIncome ? '+ ' : '');
-                    
-                    return Column(
-                      children: [
-                        _buildTransactionItem(
-                          context: context,
-                          icon: isIncome ? Icons.arrow_downward : Icons.arrow_upward,
-                          title: t.merchant ?? (isIncome ? 'Pemasukan' : (isExpense ? 'Pengeluaran' : 'Transfer')),
-                          category: t.type, // Temporary: should map from category table
-                          account: '$accountName • ${DateFormat('d MMM').format(t.transactionDate)}',
-                          amount: '$sign${currencyFormat.format(t.amount)}',
-                          isExpense: isExpense,
-                          isIncome: isIncome,
-                        ),
-                        if (index < transactions.length - 1) const Divider(height: 1),
-                      ],
-                    );
-                  },
+                return Container(
+                  decoration: BoxDecoration(
+                    color: AppTheme.surface,
+                    borderRadius: BorderRadius.circular(20),
+                    boxShadow: AppTheme.cardShadow,
+                  ),
+                  child: ListView.separated(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    itemCount: transactions.length,
+                    separatorBuilder: (_, __) => Divider(
+                      height: 1,
+                      indent: 68,
+                      color: AppTheme.borderColor.withValues(alpha: 0.5),
+                    ),
+                    itemBuilder: (context, index) {
+                      final t = transactions[index];
+                      final account = accountMap[t.accountId];
+                      return _TransactionTile(transaction: t, accountName: account?.name ?? '—');
+                    },
+                  ),
                 );
-              }
+              },
             );
           },
         ),
       ],
     );
   }
+}
 
-  Widget _buildTransactionItem({
-    required BuildContext context,
-    required IconData icon,
-    required String title,
-    required String category,
-    required String account,
-    required String amount,
-    required bool isExpense,
-    bool isIncome = false,
-  }) {
-    final bgColor = isIncome 
-        ? Theme.of(context).colorScheme.secondaryContainer 
-        : Theme.of(context).colorScheme.surfaceContainer; // The HTML uses surface-container for expense, secondary-container for income
-    
-    final iconColor = isIncome
-        ? Theme.of(context).colorScheme.onSecondaryContainer
-        : Theme.of(context).colorScheme.onSurfaceVariant;
+class _TransactionTile extends StatelessWidget {
+  final TransactionEntity transaction;
+  final String accountName;
 
-    final amountColor = isIncome
-        ? Theme.of(context).colorScheme.secondary
-        : Theme.of(context).colorScheme.onSurface;
+  const _TransactionTile({required this.transaction, required this.accountName});
+
+  @override
+  Widget build(BuildContext context) {
+    final t = transaction;
+    final isIncome = t.type == 'INCOME';
+    final isExpense = t.type == 'EXPENSE';
+    final currencyFormat = NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0);
+    final timeFormat = DateFormat('HH:mm');
+
+    final Color typeColor;
+    final IconData typeIcon;
+    final String sign;
+    if (isIncome) {
+      typeColor = AppTheme.income;
+      typeIcon = Icons.arrow_downward_rounded;
+      sign = '+ ';
+    } else if (isExpense) {
+      typeColor = AppTheme.expense;
+      typeIcon = Icons.arrow_upward_rounded;
+      sign = '- ';
+    } else {
+      typeColor = AppTheme.transfer;
+      typeIcon = Icons.swap_horiz_rounded;
+      sign = '';
+    }
 
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 12.0),
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
       child: Row(
         children: [
+          // Icon
           Container(
-            width: 40,
-            height: 40,
+            width: 42,
+            height: 42,
             decoration: BoxDecoration(
-              color: bgColor,
-              shape: BoxShape.circle,
+              color: typeColor.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(13),
             ),
-            child: Icon(icon, size: 20, color: iconColor),
+            child: Icon(typeIcon, color: typeColor, size: 19),
           ),
-          const SizedBox(width: 12),
+
+          const SizedBox(width: 14),
+
+          // Title + subtitle
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  title,
-                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                  t.merchant ?? (isIncome ? 'Pemasukan' : (isExpense ? 'Pengeluaran' : 'Transfer')),
+                  style: const TextStyle(
+                    fontSize: 14.5,
                     fontWeight: FontWeight.w600,
+                    color: AppTheme.textPrimary,
                   ),
+                  overflow: TextOverflow.ellipsis,
                 ),
-                const SizedBox(height: 2),
-                Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: bgColor,
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: Text(
-                        category.toUpperCase(),
-                        style: TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.bold,
-                          letterSpacing: 0.5,
-                          color: iconColor,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Container(
-                      width: 4,
-                      height: 4,
-                      decoration: BoxDecoration(
-                        color: Theme.of(context).colorScheme.outlineVariant,
-                        shape: BoxShape.circle,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      account,
-                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                        color: Theme.of(context).colorScheme.outline,
-                      ),
-                    ),
-                  ],
+                const SizedBox(height: 3),
+                Text(
+                  '$accountName • ${timeFormat.format(t.transactionDate)}',
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: AppTheme.textSecondary,
+                  ),
                 ),
               ],
             ),
           ),
+
+          // Amount
           Text(
-            amount,
-            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+            '$sign${currencyFormat.format(t.amount)}',
+            style: TextStyle(
+              fontSize: 14.5,
               fontWeight: FontWeight.w600,
-              color: amountColor,
+              color: isIncome ? AppTheme.income : (isExpense ? AppTheme.expense : AppTheme.textPrimary),
             ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _LoadingSkeleton extends StatelessWidget {
+  const _LoadingSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 200,
+      decoration: BoxDecoration(
+        color: AppTheme.surface,
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: const Center(
+        child: CircularProgressIndicator(strokeWidth: 2),
+      ),
+    );
+  }
+}
+
+class _EmptyState extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 40),
+      decoration: BoxDecoration(
+        color: AppTheme.surface,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: AppTheme.cardShadow,
+      ),
+      child: Column(
+        children: [
+          Icon(Icons.receipt_long_outlined, size: 48, color: AppTheme.textHint),
+          const SizedBox(height: 12),
+          const Text(
+            'Belum ada transaksi',
+            style: TextStyle(
+              fontSize: 14,
+              color: AppTheme.textSecondary,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          const SizedBox(height: 4),
+          const Text(
+            'Tap + untuk mencatat transaksi pertama',
+            style: TextStyle(fontSize: 12, color: AppTheme.textHint),
           ),
         ],
       ),

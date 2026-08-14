@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:nyatet_pesse/core/theme/app_theme.dart';
+import 'package:nyatet_pesse/data/database/app_database.dart';
 import 'package:nyatet_pesse/features/dashboard/presentation/providers/dashboard_providers.dart';
 import 'package:nyatet_pesse/features/transactions/presentation/providers/add_transaction_controller.dart';
 import 'package:nyatet_pesse/features/accounts/presentation/widgets/add_account_bottom_sheet.dart';
@@ -12,207 +14,277 @@ class AccountsScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final accountsAsync = ref.watch(accountsStreamProvider);
     final isVisible = ref.watch(isBalanceVisibleProvider);
-    final NumberFormat currencyFormat = NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0);
+    final currencyFormat = NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0);
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Akun', style: TextStyle(fontWeight: FontWeight.bold)),
-        backgroundColor: Colors.transparent,
-      ),
+      backgroundColor: AppTheme.background,
       body: accountsAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
+        loading: () => const Center(child: CircularProgressIndicator(strokeWidth: 2)),
         error: (e, st) => Center(child: Text(e.toString())),
         data: (accounts) {
           final totalBalance = accounts.fold<double>(0, (sum, acc) => sum + acc.currentBalance);
 
-          return RefreshIndicator(
-            onRefresh: () async {
-              // Usually handled by stream, but good for UX
-            },
-            child: ListView(
-              padding: const EdgeInsets.all(16),
-              children: [
-                // Total Assets Card
-                Container(
-                  decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.primaryContainer,
-                    borderRadius: BorderRadius.circular(16),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.05),
-                        blurRadius: 12,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
-                  ),
-                  padding: const EdgeInsets.all(24),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+          return CustomScrollView(
+            slivers: [
+              // ── Header ────────────────────────────────────────────────────
+              SliverToBoxAdapter(
+                child: _buildHeader(context, ref, isVisible, totalBalance, accounts.length, currencyFormat),
+              ),
+
+              // ── Section Title + Add Button ─────────────────────────────────
+              SliverPadding(
+                padding: const EdgeInsets.fromLTRB(20, 24, 20, 12),
+                sliver: SliverToBoxAdapter(
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text(
-                        'Total Aset',
-                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: Theme.of(context).colorScheme.onPrimaryContainer.withValues(alpha: 0.8),
+                      const Text(
+                        'Semua Akun',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: AppTheme.textPrimary,
+                          letterSpacing: -0.2,
                         ),
                       ),
-                      const SizedBox(height: 8),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Text(
-                              isVisible ? currencyFormat.format(totalBalance) : 'Rp ••••••••',
-                              style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                                fontWeight: FontWeight.bold,
-                                color: Theme.of(context).colorScheme.onPrimaryContainer,
-                              ),
-                            ),
-                          ),
-                          IconButton(
-                            onPressed: () {
-                              ref.read(isBalanceVisibleProvider.notifier).state = !isVisible;
-                            },
-                            icon: Icon(
-                              isVisible ? Icons.visibility : Icons.visibility_off,
-                              color: Theme.of(context).colorScheme.onPrimaryContainer.withValues(alpha: 0.7),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-                
-                const SizedBox(height: 24),
-                
-                // Account List Header
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'Daftar Akun',
-                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    OutlinedButton.icon(
-                      onPressed: () {
-                        showModalBottomSheet(
+                      GestureDetector(
+                        onTap: () => showModalBottomSheet(
                           context: context,
                           isScrollControlled: true,
+                          backgroundColor: Colors.white,
                           shape: const RoundedRectangleBorder(
-                            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+                            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
                           ),
-                          builder: (context) => const AddAccountBottomSheet(),
-                        );
-                      },
-                      icon: const Icon(Icons.add, size: 18),
-                      label: const Text('Tambah Akun'),
-                      style: OutlinedButton.styleFrom(
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(20),
+                          builder: (_) => const AddAccountBottomSheet(),
+                        ),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                          decoration: BoxDecoration(
+                            color: AppTheme.primary,
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: const Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.add_rounded, size: 16, color: Colors.white),
+                              SizedBox(width: 4),
+                              Text(
+                                'Tambah',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.white,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-                
-                const SizedBox(height: 16),
-                
-                // Account Grid
-                if (accounts.isEmpty)
-                   const Center(child: Padding(padding: EdgeInsets.all(32), child: Text('Belum ada akun')))
-                else
-                   GridView.builder(
-                     shrinkWrap: true,
-                     physics: const NeverScrollableScrollPhysics(),
-                     gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                       crossAxisCount: 2,
-                       crossAxisSpacing: 12,
-                       mainAxisSpacing: 12,
-                       childAspectRatio: 1.5,
-                     ),
-                     itemCount: accounts.length,
-                     itemBuilder: (context, index) {
-                       final account = accounts[index];
-                       
-                       // Determine icon & colors based on type
-                       IconData iconData;
-                       Color bgColor;
-                       Color iconColor;
-                       
-                       switch (account.type.toUpperCase()) {
-                         case 'BANK':
-                           iconData = Icons.account_balance;
-                           bgColor = Colors.blue.shade50;
-                           iconColor = Colors.blue.shade700;
-                           break;
-                         case 'E-WALLET':
-                           iconData = Icons.account_balance_wallet;
-                           bgColor = Colors.purple.shade50;
-                           iconColor = Colors.purple.shade700;
-                           break;
-                         case 'CASH':
-                         default:
-                           iconData = Icons.payments;
-                           bgColor = Colors.green.shade50;
-                           iconColor = Colors.green.shade700;
-                           break;
-                       }
-                       
-                       // Cash can take full width if we want, but let's just make it part of grid
-                       return Container(
-                         decoration: BoxDecoration(
-                           color: Theme.of(context).colorScheme.surface,
-                           borderRadius: BorderRadius.circular(16),
-                           border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
-                         ),
-                         padding: const EdgeInsets.all(12),
-                         child: Column(
-                           crossAxisAlignment: CrossAxisAlignment.start,
-                           children: [
-                             Row(
-                               children: [
-                                 Container(
-                                   width: 32,
-                                   height: 32,
-                                   decoration: BoxDecoration(
-                                     color: bgColor,
-                                     shape: BoxShape.circle,
-                                     border: Border.all(color: iconColor.withValues(alpha: 0.2)),
-                                   ),
-                                   child: Icon(iconData, size: 16, color: iconColor),
-                                 ),
-                                 const Spacer(),
-                                 // Maybe options menu
-                                 Icon(Icons.more_vert, size: 16, color: Theme.of(context).colorScheme.outline),
-                               ],
-                             ),
-                             const Spacer(),
-                             Text(
-                               account.name,
-                               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                 fontWeight: FontWeight.w600,
-                               ),
-                               maxLines: 1,
-                               overflow: TextOverflow.ellipsis,
-                             ),
-                             Text(
-                               isVisible ? currencyFormat.format(account.currentBalance) : 'Rp ••••',
-                               style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                 color: Theme.of(context).colorScheme.onSurfaceVariant,
-                                 fontWeight: FontWeight.w500,
-                               ),
-                             ),
-                           ],
-                         ),
-                       );
-                     },
-                   ),
-              ],
-            ),
+              ),
+
+              // ── Account Cards ─────────────────────────────────────────────
+              if (accounts.isEmpty)
+                const SliverFillRemaining(
+                  child: Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.account_balance_wallet_outlined, size: 64, color: AppTheme.textHint),
+                        SizedBox(height: 16),
+                        Text('Belum ada akun', style: TextStyle(fontSize: 16, color: AppTheme.textSecondary, fontWeight: FontWeight.w500)),
+                        SizedBox(height: 6),
+                        Text('Tap "Tambah" untuk menambah akun pertama', style: TextStyle(fontSize: 13, color: AppTheme.textHint)),
+                      ],
+                    ),
+                  ),
+                )
+              else
+                SliverPadding(
+                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 100),
+                  sliver: SliverGrid(
+                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: 2,
+                      crossAxisSpacing: 14,
+                      mainAxisSpacing: 14,
+                      childAspectRatio: 1.55,
+                    ),
+                    delegate: SliverChildBuilderDelegate(
+                      (context, index) => _AccountCard(
+                        account: accounts[index],
+                        isVisible: isVisible,
+                        currencyFormat: currencyFormat,
+                      ),
+                      childCount: accounts.length,
+                    ),
+                  ),
+                ),
+            ],
           );
         },
       ),
     );
   }
+
+  Widget _buildHeader(
+    BuildContext context,
+    WidgetRef ref,
+    bool isVisible,
+    double totalBalance,
+    int accountCount,
+    NumberFormat currencyFormat,
+  ) {
+    return Container(
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFF000666), Color(0xFF1E3A8A)],
+        ),
+      ),
+      child: SafeArea(
+        bottom: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(24, 20, 24, 32),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Akun & Dompet',
+                style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.7),
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                  letterSpacing: 0.2,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      isVisible ? currencyFormat.format(totalBalance) : 'Rp ••••••',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 30,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: -0.5,
+                      ),
+                    ),
+                  ),
+                  GestureDetector(
+                    onTap: () => ref.read(isBalanceVisibleProvider.notifier).state = !isVisible,
+                    child: Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.15),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(
+                        isVisible ? Icons.visibility_outlined : Icons.visibility_off_outlined,
+                        color: Colors.white,
+                        size: 18,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 6),
+              Text(
+                'Total dari $accountCount akun',
+                style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.6),
+                  fontSize: 12,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _AccountCard extends StatelessWidget {
+  final Account account;
+  final bool isVisible;
+  final NumberFormat currencyFormat;
+
+  const _AccountCard({required this.account, required this.isVisible, required this.currencyFormat});
+
+  @override
+  Widget build(BuildContext context) {
+    final config = _getTypeConfig(account.type);
+
+    return Container(
+      decoration: BoxDecoration(
+        color: AppTheme.surface,
+        borderRadius: BorderRadius.circular(18),
+        boxShadow: AppTheme.cardShadow,
+      ),
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 34,
+                height: 34,
+                decoration: BoxDecoration(
+                  color: config.color.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(config.icon, size: 17, color: config.color),
+              ),
+              const Spacer(),
+              Icon(Icons.more_horiz_rounded, size: 18, color: AppTheme.textHint),
+            ],
+          ),
+          const Spacer(),
+          Text(
+            account.name,
+            style: const TextStyle(
+              fontSize: 13.5,
+              fontWeight: FontWeight.w600,
+              color: AppTheme.textPrimary,
+              letterSpacing: -0.1,
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+          const SizedBox(height: 2),
+          Text(
+            isVisible ? currencyFormat.format(account.currentBalance) : 'Rp ••••',
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+              color: account.currentBalance >= 0 ? AppTheme.income : AppTheme.expense,
+            ),
+            overflow: TextOverflow.ellipsis,
+          ),
+        ],
+      ),
+    );
+  }
+
+  _TypeConfig _getTypeConfig(String type) {
+    switch (type.toUpperCase()) {
+      case 'BANK':
+        return _TypeConfig(Icons.account_balance_rounded, const Color(0xFF3B82F6));
+      case 'E-WALLET':
+        return _TypeConfig(Icons.account_balance_wallet_rounded, const Color(0xFF8B5CF6));
+      case 'CASH':
+      default:
+        return _TypeConfig(Icons.payments_rounded, AppTheme.income);
+    }
+  }
+}
+
+class _TypeConfig {
+  final IconData icon;
+  final Color color;
+  const _TypeConfig(this.icon, this.color);
 }
