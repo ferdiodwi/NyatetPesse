@@ -17,6 +17,7 @@ class _AppLockScreenState extends ConsumerState<AppLockScreen>
   bool _hasError = false;
   bool _isBiometricLoading = false;
   bool _userDismissedBiometric = false;
+  DateTime? _pausedAt;
 
   static const int _pinLength = 6;
   static const _primary = Color(0xFF000666);
@@ -41,10 +42,24 @@ class _AppLockScreenState extends ConsumerState<AppLockScreen>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.paused) {
-      ref.read(securityControllerProvider.notifier).lockApp();
+    if (state == AppLifecycleState.paused || state == AppLifecycleState.inactive) {
+      // Catat waktu kapan aplikasi masuk ke background
+      if (_pausedAt == null) {
+        _pausedAt = DateTime.now();
+      }
       _userDismissedBiometric = false;
     } else if (state == AppLifecycleState.resumed) {
+      // Saat kembali, cek selisih waktu
+      if (_pausedAt != null) {
+        final diff = DateTime.now().difference(_pausedAt!);
+        if (diff.inMinutes >= 1) {
+          // Jika sudah 1 menit atau lebih, kunci aplikasi
+          ref.read(securityControllerProvider.notifier).lockApp();
+        }
+        // Reset waktu paused
+        _pausedAt = null;
+      }
+
       final s = ref.read(securityControllerProvider);
       if (s.isAppLocked && s.isBiometricEnabled && s.isBiometricSupported && !_userDismissedBiometric) {
         _tryBiometric();

@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:drift/drift.dart' show Value;
 import 'package:nyatet_pesse/data/database/app_database.dart';
 import 'package:nyatet_pesse/features/inbox/domain/models/parsed_transaction.dart';
 import 'package:nyatet_pesse/features/inbox/presentation/providers/inbox_controller.dart';
@@ -109,10 +110,13 @@ class InboxItemCard extends ConsumerWidget {
                   onPressed: () async {
                     final controller = ref.read(inboxControllerProvider.notifier);
                     final accounts = await ref.read(accountRepositoryProvider).watchAllAccounts().first;
-                    if (accounts.isNotEmpty) {
+                    
+                    final matchedAccountId = await _findOrCreateAccountId(context, ref, accounts, item.sourceApp);
+                    
+                    if (matchedAccountId != 0) {
                       controller.confirmTransaction(
                         item,
-                        accountId: accounts.first.id,
+                        accountId: matchedAccountId,
                         amount: parsed?.amount ?? 0,
                         type: parsed?.type ?? 'expense',
                         merchant: parsed?.merchant,
@@ -120,7 +124,7 @@ class InboxItemCard extends ConsumerWidget {
                     } else {
                       if (context.mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Anda belum memiliki Akun/Dompet!')),
+                          const SnackBar(content: Text('Anda belum memiliki Akun/Dompet sama sekali!')),
                         );
                       }
                     }
@@ -138,5 +142,71 @@ class InboxItemCard extends ConsumerWidget {
         ),
       ),
     );
+  }
+
+  Future<int> _findOrCreateAccountId(BuildContext context, WidgetRef ref, List<Account> accounts, String? sourceApp) async {
+    if (sourceApp == null) return accounts.isNotEmpty ? accounts.first.id : 0;
+
+    final sourceLower = sourceApp.toLowerCase();
+    
+    // Tentukan kata kunci pencarian dan nama default jika akun belum ada
+    List<String> keywords = [];
+    String? defaultName;
+    
+    if (sourceLower.contains('seabank') || sourceLower.contains('bankbke')) {
+      keywords = ['seabank', 'sea bank', 'bke'];
+      defaultName = 'SeaBank';
+    } else if (sourceLower.contains('dana')) {
+      keywords = ['dana'];
+      defaultName = 'DANA';
+    } else if (sourceLower.contains('ovo')) {
+      keywords = ['ovo'];
+      defaultName = 'OVO';
+    } else if (sourceLower.contains('gojek')) {
+      keywords = ['gopay', 'go-pay', 'gojek'];
+      defaultName = 'GoPay';
+    } else if (sourceLower.contains('shopee')) {
+      keywords = ['shopeepay', 'shopee pay', 'spay'];
+      defaultName = 'ShopeePay';
+    } else if (sourceLower.contains('bca')) {
+      keywords = ['bca'];
+      defaultName = 'BCA';
+    } else if (sourceLower.contains('mandiri')) {
+      keywords = ['mandiri', 'livin'];
+      defaultName = 'Mandiri';
+    }
+
+    // Cari akun yang namanya mengandung salah satu kata kunci
+    for (final keyword in keywords) {
+      for (final account in accounts) {
+        if (account.name.toLowerCase().contains(keyword)) {
+          return account.id; // Ketemu!
+        }
+      }
+    }
+
+    // Jika tidak ketemu tapi kita tahu bank/ewallet apa ini, buat otomatis!
+    if (defaultName != null) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Akun $defaultName belum ada. Sistem membuat otomatis!')),
+        );
+      }
+      
+      final repo = ref.read(accountRepositoryProvider);
+      final newId = await repo.addAccount(
+        AccountsCompanion.insert(
+          name: defaultName,
+          type: 'E-WALLET', // Default type for auto-created accounts
+          currentBalance: Value(0.0),
+          createdAt: DateTime.now(),
+          updatedAt: Value(DateTime.now()),
+        ),
+      );
+      return newId;
+    }
+
+    // Jika tidak dikenali, kembali ke akun pertama (default)
+    return accounts.isNotEmpty ? accounts.first.id : 0;
   }
 }
