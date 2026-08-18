@@ -240,28 +240,40 @@ class _AddTransactionScreenState extends ConsumerState<AddTransactionScreen>
                       ),
                       const SizedBox(width: 6),
                       IntrinsicWidth(
-                        child: TextField(
-                          controller: _amountController,
-                          keyboardType: TextInputType.number,
-                          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                          style: const TextStyle(
-                            fontSize: 44,
-                            fontWeight: FontWeight.w700,
-                            color: Colors.white,
-                            height: 1.1,
+                        child: Theme(
+                          data: Theme.of(context).copyWith(
+                            textSelectionTheme: TextSelectionThemeData(
+                              selectionColor: Colors.white.withValues(alpha: 0.3),
+                              cursorColor: Colors.white,
+                              selectionHandleColor: Colors.white,
+                            ),
                           ),
-                          cursorColor: Colors.white,
-                          decoration: InputDecoration(
-                            hintText: '0',
-                            hintStyle: TextStyle(
-                              color: Colors.white.withValues(alpha: 0.4),
+                          child: TextField(
+                            controller: _amountController,
+                            keyboardType: TextInputType.number,
+                            inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                            style: const TextStyle(
                               fontSize: 44,
                               fontWeight: FontWeight.w700,
+                              color: Colors.white,
                               height: 1.1,
                             ),
-                            border: InputBorder.none,
-                            isDense: true,
-                            contentPadding: EdgeInsets.zero,
+                            cursorColor: Colors.white,
+                            decoration: InputDecoration(
+                              hintText: '0',
+                              hintStyle: TextStyle(
+                                color: Colors.white.withValues(alpha: 0.4),
+                                fontSize: 44,
+                                fontWeight: FontWeight.w700,
+                                height: 1.1,
+                              ),
+                              border: InputBorder.none,
+                              enabledBorder: InputBorder.none,
+                              focusedBorder: InputBorder.none,
+                              filled: false,
+                              isDense: true,
+                              contentPadding: EdgeInsets.zero,
+                            ),
                           ),
                         ),
                       ),

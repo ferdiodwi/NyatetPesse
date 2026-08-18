@@ -1,7 +1,9 @@
 import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
+import 'package:image/image.dart' as img;
 
 class GeminiService {
   static const String _apiKeyStorageKey = 'gemini_api_key';
@@ -119,8 +121,97 @@ Isi: $text
       debugPrint('[Gemini] ❌ Exception: $e');
       return null;
     }
+  }
 
-    return null;
+  // ── Receipt Parsing (OCR) ───────────────────────────────────────────────────
+  Future<Map<String, dynamic>?> parseReceiptImage(File imageFile) async {
+    final apiKey = await getApiKey();
+    if (apiKey == null || apiKey.isEmpty) return null;
+
+    final modelName = await _getBestModel(apiKey);
+    final url = '$_baseApiUrl/models/$modelName:generateContent';
+
+    const prompt = '''
+Anda adalah asisten keuangan canggih. Tugas Anda membaca gambar struk/kuitansi/nota belanja ini dan mengekstrak datanya.
+
+ATURAN:
+1. "amount": TOTAL AKHIR (Grand Total) yang dibayar setelah ditambah pajak/fee dan dikurangi diskon/promo. JANGAN ambil Subtotal. Berikan dalam angka bulat (misal: 150000). Jangan sertakan Rp/titik/koma.
+2. "type": "expense" (pengeluaran), "income" (pemasukan), "transfer". (Struk belanja = expense).
+3. "merchant": Nama toko atau restoran.
+4. "date": Tanggal transaksi dalam format YYYY-MM-DD. Jika tidak ada, isi null.
+5. Kembalikan HANYA JSON valid. Jika gambar BUKAN struk/kuitansi, kembalikan {"is_receipt": false}.
+
+Format:
+{"is_receipt": true, "amount": 150000, "type": "expense", "merchant": "Indomaret", "date": "2023-10-25"}
+''';
+
+    try {
+      var bytes = await imageFile.readAsBytes();
+      
+      // Jika ukuran gambar > 1 MB, kompres dulu agar tidak Timeout / Payload Too Large
+      if (bytes.length > 1024 * 1024) {
+        debugPrint('[Gemini OCR] Gambar terlalu besar (${bytes.length} bytes), sedang dikompres...');
+        final decodedImage = await compute(img.decodeImage, bytes);
+        if (decodedImage != null) {
+          final resized = img.copyResize(decodedImage, width: 1000);
+          bytes = img.encodeJpg(resized, quality: 70);
+          debugPrint('[Gemini OCR] Selesai dikompres menjadi ${bytes.length} bytes');
+        }
+      }
+
+      final base64Image = base64Encode(bytes);
+
+      final response = await http
+          .post(
+            Uri.parse('$url?key=$apiKey'),
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({
+              'contents': [
+                {
+                  'parts': [
+                    {'text': prompt},
+                    {
+                      'inlineData': {
+                        'mimeType': 'image/jpeg',
+                        'data': base64Image
+                      }
+                    }
+                  ],
+                }
+              ],
+              'generationConfig': {
+                'temperature': 0.1,
+                'responseMimeType': 'application/json',
+              },
+            }),
+          )
+          .timeout(const Duration(seconds: 60)); // Gambar + OCR butuh waktu lama
+
+      debugPrint('[Gemini OCR] HTTP ${response.statusCode}');
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final rawText = data['candidates']?[0]?['content']?['parts']?[0]?['text'];
+        if (rawText == null) return null;
+
+        final cleaned = rawText.toString().replaceAll('```json', '').replaceAll('```', '').trim();
+        debugPrint('[Gemini OCR] Response: $cleaned');
+
+        final parsed = jsonDecode(cleaned) as Map<String, dynamic>;
+        if (parsed['is_receipt'] == false) return null;
+        
+        return parsed;
+      } else {
+        debugPrint('[Gemini OCR] ❌ Error ${response.statusCode}: ${response.body.substring(0, response.body.length.clamp(0, 300))}');
+        if (response.statusCode == 429) {
+          throw Exception('API_QUOTA_EXCEEDED');
+        }
+        throw Exception('HTTP_${response.statusCode}');
+      }
+    } catch (e) {
+      debugPrint('[Gemini OCR] ❌ Exception: $e');
+      rethrow;
+    }
   }
 
   // ── Auto-Detect Latest Model ────────────────────────────────────────────────

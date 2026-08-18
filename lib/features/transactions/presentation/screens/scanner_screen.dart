@@ -1,20 +1,22 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:camera/camera.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:nyatet_pesse/core/services/ocr_service.dart';
 import 'package:nyatet_pesse/features/transactions/domain/parsers/ocr_parser.dart';
 import 'package:nyatet_pesse/features/transactions/presentation/screens/add_transaction_screen.dart';
+import 'package:nyatet_pesse/notification/services/notification_service.dart';
 
-class ScannerScreen extends StatefulWidget {
+class ScannerScreen extends ConsumerStatefulWidget {
   const ScannerScreen({super.key});
 
   @override
-  State<ScannerScreen> createState() => _ScannerScreenState();
+  ConsumerState<ScannerScreen> createState() => _ScannerScreenState();
 }
 
-class _ScannerScreenState extends State<ScannerScreen> with WidgetsBindingObserver {
+class _ScannerScreenState extends ConsumerState<ScannerScreen> with WidgetsBindingObserver {
   CameraController? _cameraController;
   final ImagePicker _picker = ImagePicker();
   final OcrService _ocrService = OcrService();
@@ -101,6 +103,15 @@ class _ScannerScreenState extends State<ScannerScreen> with WidgetsBindingObserv
 
     try {
       final XFile image = await _cameraController!.takePicture();
+      
+      // Auto-turn off flash after capturing
+      if (_isFlashOn) {
+        setState(() {
+          _isFlashOn = false;
+        });
+        await _cameraController!.setFlashMode(FlashMode.off);
+      }
+
       await _processImageFile(File(image.path));
     } catch (e) {
       _showError('Gagal mengambil gambar: $e');
@@ -123,22 +134,79 @@ class _ScannerScreenState extends State<ScannerScreen> with WidgetsBindingObserv
 
   Future<void> _processImageFile(File file) async {
     try {
-      final rawText = await _ocrService.extractTextFromImage(file);
+      final geminiService = ref.read(geminiServiceProvider);
+      final hasGeminiKey = await geminiService.hasApiKey();
+
+      double? finalAmount;
+      String? finalType;
+      String? finalMerchant;
+      DateTime? finalDate;
+      String finalNote = '';
+
+      if (hasGeminiKey) {
+        debugPrint('Menggunakan Gemini OCR...');
+        try {
+          final result = await geminiService.parseReceiptImage(file);
+          
+          if (result != null) {
+            final rawAmount = result['amount'];
+            if (rawAmount != null) {
+              finalAmount = double.tryParse(rawAmount.toString());
+            }
+            finalType = result['type'] as String?;
+            finalMerchant = result['merchant'] as String?;
+            
+            if (result['date'] != null) {
+              try {
+                finalDate = DateTime.parse(result['date']);
+              } catch (_) {}
+            }
+            finalNote = 'Diproses oleh Gemini AI✨';
+          }
+        } catch (e) {
+          debugPrint('Gemini Exception caught: $e');
+          if (mounted) {
+            final msg = e.toString().contains('API_QUOTA_EXCEEDED') 
+                ? 'Kuota AI Gemini harian Anda telah habis.' 
+                : 'Koneksi ke AI bermasalah.';
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('$msg Menggunakan OCR lokal...'),
+                backgroundColor: Colors.orange.shade800,
+                duration: const Duration(seconds: 4),
+              ),
+            );
+          }
+        }
+      }
+
+      // Fallback ke ML Kit jika Gemini gagal / tidak ada API Key
+      if (finalAmount == null) {
+        debugPrint('Fallback ke ML Kit OCR lokal...');
+        final rawText = await _ocrService.extractTextFromImage(file);
+
+        if (rawText != null && rawText.isNotEmpty) {
+          final parsed = OcrParser.parse(rawText);
+          finalAmount = parsed.amount;
+          finalType = parsed.type;
+          finalMerchant = parsed.merchant;
+          finalDate = parsed.date;
+          finalNote = 'RAW OCR:\n${parsed.rawText}';
+        }
+      }
 
       if (!mounted) return;
 
-      if (rawText != null && rawText.isNotEmpty) {
-        final parsed = OcrParser.parse(rawText);
-        
+      if (finalAmount != null || finalMerchant != null) {
         Navigator.push(
           context,
           MaterialPageRoute(
             builder: (context) => AddTransactionScreen(
-              initialAmount: parsed.amount,
-              initialType: parsed.type,
-              initialMerchant: parsed.merchant,
-              initialDate: parsed.date,
-              initialNote: 'RAW OCR:\n${parsed.rawText}',
+              initialAmount: finalAmount,
+              initialType: finalType ?? 'EXPENSE',
+              initialMerchant: finalMerchant,
+              initialDate: finalDate,
+              initialNote: finalNote,
             ),
           ),
         );
