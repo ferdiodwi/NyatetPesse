@@ -6,6 +6,7 @@ import 'package:nyatet_pesse/features/settings/presentation/screens/notification
 import 'package:nyatet_pesse/features/security/presentation/screens/security_settings_screen.dart';
 import 'package:nyatet_pesse/features/settings/presentation/providers/export_provider.dart';
 import 'package:nyatet_pesse/features/transactions/presentation/screens/recurring_transactions_screen.dart';
+import 'package:nyatet_pesse/notification/services/notification_service.dart';
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
@@ -117,6 +118,33 @@ class SettingsScreen extends ConsumerWidget {
                           }
                         }
                       },
+                    ),
+                  ],
+                ),
+
+                const SizedBox(height: 24),
+
+                // Group 4: AI Parser
+                _SectionHeader(title: 'Kecerdasan Buatan'),
+                const SizedBox(height: 8),
+                _SettingsCard(
+                  items: [
+                    _SettingsItem(
+                      icon: Icons.auto_awesome_rounded,
+                      iconColor: const Color(0xFFEC4899),
+                      title: 'Gemini AI Parser',
+                      subtitle: 'Tingkatkan akurasi parsing notifikasi',
+                      onTap: () => showModalBottomSheet(
+                        context: context,
+                        isScrollControlled: true,
+                        backgroundColor: Colors.white,
+                        shape: const RoundedRectangleBorder(
+                          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+                        ),
+                        builder: (_) => _GeminiApiKeySheet(
+                          geminiService: ref.read(geminiServiceProvider),
+                        ),
+                      ),
                     ),
                   ],
                 ),
@@ -244,3 +272,225 @@ class _SettingsItem {
     required this.onTap,
   });
 }
+
+// ── Gemini API Key Bottom Sheet ────────────────────────────────────────────────
+class _GeminiApiKeySheet extends StatefulWidget {
+  final dynamic geminiService;
+  const _GeminiApiKeySheet({required this.geminiService});
+
+  @override
+  State<_GeminiApiKeySheet> createState() => _GeminiApiKeySheetState();
+}
+
+class _GeminiApiKeySheetState extends State<_GeminiApiKeySheet> {
+  final _controller = TextEditingController();
+  bool _hasKey = false;
+  bool _isLoading = true;
+  bool _obscure = true;
+  bool _isSaving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadCurrentKey();
+  }
+
+  Future<void> _loadCurrentKey() async {
+    final hasKey = await widget.geminiService.hasApiKey();
+    final key = await widget.geminiService.getApiKey();
+    if (mounted) {
+      setState(() {
+        _hasKey = hasKey;
+        _isLoading = false;
+        if (key != null) _controller.text = key;
+      });
+    }
+  }
+
+  Future<void> _save() async {
+    final key = _controller.text.trim();
+    if (key.isEmpty) return;
+    setState(() => _isSaving = true);
+    await widget.geminiService.saveApiKey(key);
+    if (mounted) {
+      setState(() {
+        _hasKey = true;
+        _isSaving = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('✅ API Key berhasil disimpan! Gemini AI aktif.'),
+          backgroundColor: AppTheme.income,
+        ),
+      );
+      Navigator.pop(context);
+    }
+  }
+
+  Future<void> _delete() async {
+    await widget.geminiService.deleteApiKey();
+    if (mounted) {
+      setState(() {
+        _hasKey = false;
+        _controller.clear();
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('API Key dihapus. Kembali ke mode regex.')),
+      );
+      Navigator.pop(context);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.fromLTRB(
+        20, 20, 20,
+        MediaQuery.of(context).viewInsets.bottom + 24,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Drag handle
+          Center(
+            child: Container(
+              width: 40, height: 4,
+              margin: const EdgeInsets.only(bottom: 20),
+              decoration: BoxDecoration(
+                color: AppTheme.borderColor,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+          ),
+
+          // Title
+          Row(
+            children: [
+              Container(
+                width: 40, height: 40,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFEC4899).withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(Icons.auto_awesome_rounded, color: Color(0xFFEC4899), size: 20),
+              ),
+              const SizedBox(width: 12),
+              const Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Gemini AI Parser', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: AppTheme.textPrimary)),
+                  Text('Google AI Studio API Key', style: TextStyle(fontSize: 12, color: AppTheme.textSecondary)),
+                ],
+              ),
+              const Spacer(),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: _hasKey ? AppTheme.income.withValues(alpha: 0.1) : AppTheme.borderColor,
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(
+                  _hasKey ? 'Aktif' : 'Tidak Aktif',
+                  style: TextStyle(
+                    fontSize: 11, fontWeight: FontWeight.w600,
+                    color: _hasKey ? AppTheme.income : AppTheme.textSecondary,
+                  ),
+                ),
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 20),
+
+          // Info box
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: AppTheme.primary.withValues(alpha: 0.05),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: AppTheme.primary.withValues(alpha: 0.15)),
+            ),
+            child: const Row(
+              children: [
+                Icon(Icons.info_outline_rounded, size: 16, color: AppTheme.primary),
+                SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    'API Key disimpan terenkripsi di perangkat. Dapatkan key gratis di aistudio.google.com',
+                    style: TextStyle(fontSize: 12, color: AppTheme.primary, height: 1.4),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 16),
+
+          // Input field
+          if (_isLoading)
+            const Center(child: CircularProgressIndicator(strokeWidth: 2))
+          else
+            TextField(
+              controller: _controller,
+              obscureText: _obscure,
+              decoration: InputDecoration(
+                hintText: 'AIza...',
+                labelText: 'Gemini API Key',
+                suffixIcon: IconButton(
+                  icon: Icon(_obscure ? Icons.visibility_outlined : Icons.visibility_off_outlined, size: 18),
+                  onPressed: () => setState(() => _obscure = !_obscure),
+                ),
+              ),
+            ),
+
+          const SizedBox(height: 20),
+
+          // Buttons
+          Row(
+            children: [
+              if (_hasKey)
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: _delete,
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppTheme.expense,
+                      side: const BorderSide(color: AppTheme.expense),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                    ),
+                    icon: const Icon(Icons.delete_outline_rounded, size: 16),
+                    label: const Text('Hapus Key'),
+                  ),
+                ),
+              if (_hasKey) const SizedBox(width: 12),
+              Expanded(
+                flex: 2,
+                child: ElevatedButton(
+                  onPressed: _isSaving ? null : _save,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppTheme.primary,
+                    foregroundColor: Colors.white,
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                  ),
+                  child: _isSaving
+                      ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                      : const Text('Simpan & Aktifkan', style: TextStyle(fontWeight: FontWeight.w600)),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+}
+

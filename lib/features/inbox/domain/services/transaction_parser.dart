@@ -8,8 +8,17 @@ class TransactionParser {
     final lowerText = text.toLowerCase();
     final combinedText = '$lowerTitle $lowerText';
 
-    // Whitelist allowed financial/e-wallet apps to prevent reading system notifications
-    final allowedPackages = ['id.dana', 'ovo.id', 'com.gojek.app', 'com.shopee.id', 'com.bca', 'com.bankmandiri', 'seabank', 'bankbke'];
+    // Whitelist allowed financial/e-wallet apps
+    final allowedPackages = [
+      'id.dana',
+      'ovo.id',
+      'com.gojek.app',
+      'com.shopee.id',
+      'com.bca',
+      'com.bankmandiri',
+      'seabank',
+      'bankbke',
+    ];
     bool isAllowed = false;
     for (final pkg in allowedPackages) {
       if (packageName.toLowerCase().contains(pkg)) {
@@ -17,37 +26,42 @@ class TransactionParser {
         break;
       }
     }
-    
-    // Fallback: If it's a test broadcast with no package or unknown package, we can ignore it 
-    // BUT since we just sent mock notifications using package names like "id.dana" and "ovo.id", it's fine.
-    if (!isAllowed) {
-      return null;
-    }
+    if (!isAllowed) return null;
 
     // Filter out non-transactional notifications
-    if (combinedText.contains('otp') ||
+    final isOtp = combinedText.contains('otp') ||
         combinedText.contains('kode verifikasi') ||
-        combinedText.contains('promo') ||
-        combinedText.contains('cashback') && !combinedText.contains('berhasil') ||
-        combinedText.contains('jangan berikan')) {
-      return null;
-    }
+        combinedText.contains('kode keamanan') ||
+        combinedText.contains('jangan berikan') ||
+        combinedText.contains('kode rahasia');
 
+    final isPromo = (combinedText.contains('promo') ||
+            combinedText.contains('cashback') ||
+            combinedText.contains('diskon') ||
+            combinedText.contains('voucher') ||
+            combinedText.contains('flash sale') ||
+            combinedText.contains('hadiah')) &&
+        !combinedText.contains('berhasil') &&
+        !combinedText.contains('diterima') &&
+        !combinedText.contains('pembayaran');
+
+    if (isOtp || isPromo) return null;
+
+    // ── Amount ──────────────────────────────────────────────────────────────────
+    // Amount MUST be explicitly prefixed with "rp" to avoid false positives like
+    // version numbers, dates, order IDs, etc.
     double? amount = _extractAmount(combinedText);
-    if (amount == null || amount <= 0) {
-      return null; // Not a transaction if there's no amount
-    }
+    if (amount == null || amount <= 0) return null;
 
+    // ── Type & Merchant ─────────────────────────────────────────────────────────
     String type = _determineType(packageName, combinedText);
-    String? merchant = _extractMerchant(packageName, title, text);
+    String? merchant = _extractMerchant(packageName, title, text, combinedText);
 
-    // Rule-based confidence
-    double confidence = 0.6; // Base confidence
+    // ── Confidence ──────────────────────────────────────────────────────────────
+    double confidence = 0.6;
     if (merchant != null && merchant.isNotEmpty) confidence += 0.2;
-    if (type != 'expense') confidence += 0.1; // Incomes are usually easier to guess correctly
-
-    // Cap at 0.9 (leave 1.0 for manual or high certainty ML)
-    confidence = confidence > 0.9 ? 0.9 : confidence;
+    if (type == 'income') confidence += 0.1;
+    if (confidence > 0.9) confidence = 0.9;
 
     return ParsedTransaction(
       amount: amount,
@@ -57,71 +71,165 @@ class TransactionParser {
     );
   }
 
+  // ─────────────────────────────────────────────────────────────────────────────
+  // Amount Extraction
+  // HARUS diawali "rp" agar tidak menangkap angka acak seperti nomor pesanan / versi.
+  // ─────────────────────────────────────────────────────────────────────────────
   double? _extractAmount(String text) {
-    // Matches Rp10.000, Rp 10.000, Rp. 10.000, 10.000,00
-    // Removed the global flag since Dart regex doesn't use it the same way inline
-    final regex = RegExp(r'(?:rp\s*\.?\s*)?(\d{1,3}(?:\.\d{3})*(?:,\d{2})?)', caseSensitive: false);
-    final match = regex.firstMatch(text);
-    
-    if (match != null && match.groupCount >= 1) {
-      String rawAmount = match.group(1)!;
-      // Remove dots
-      rawAmount = rawAmount.replaceAll('.', '');
-      // Replace comma with dot for decimal
-      rawAmount = rawAmount.replaceAll(',', '.');
-      return double.tryParse(rawAmount);
+    // Matches: Rp10.000 / Rp 10.000 / Rp. 10.000 / Rp10.000,00 / Rp 1.000.000
+    final regex = RegExp(
+      r'rp\.?\s*([\d]{1,3}(?:[.,]\d{3})*(?:[,.]\d{1,2})?)',
+      caseSensitive: false,
+    );
+
+    double? best;
+
+    for (final match in regex.allMatches(text)) {
+      String raw = match.group(1)!;
+
+      // Handle Indonesian format: 1.000.000 (dots as thousands) or 1.000,50
+      // vs decimal format: 1,000.50
+      double? parsed;
+
+      if (raw.contains(',') && raw.contains('.')) {
+        // e.g. "1.000,50" — dot = thousands separator, comma = decimal
+        raw = raw.replaceAll('.', '').replaceAll(',', '.');
+        parsed = double.tryParse(raw);
+      } else if (raw.contains('.') && !raw.contains(',')) {
+        // Could be "10.000" (thousands) or "10.5" (decimal)
+        final parts = raw.split('.');
+        if (parts.last.length == 3) {
+          // Likely thousands separator (10.000, 1.000.000)
+          raw = raw.replaceAll('.', '');
+          parsed = double.tryParse(raw);
+        } else {
+          // Likely decimal (10.50)
+          parsed = double.tryParse(raw);
+        }
+      } else if (raw.contains(',') && !raw.contains('.')) {
+        // e.g. "10,000" — could be thousands (US) or decimal (ID)
+        final parts = raw.split(',');
+        if (parts.last.length == 3) {
+          raw = raw.replaceAll(',', '');
+          parsed = double.tryParse(raw);
+        } else {
+          raw = raw.replaceAll(',', '.');
+          parsed = double.tryParse(raw);
+        }
+      } else {
+        parsed = double.tryParse(raw);
+      }
+
+      // Take the LARGEST amount found — usually the transaction value
+      if (parsed != null && parsed > (best ?? 0)) {
+        best = parsed;
+      }
     }
-    return null;
+
+    return best;
   }
 
+  // ─────────────────────────────────────────────────────────────────────────────
+  // Type Determination
+  // ─────────────────────────────────────────────────────────────────────────────
   String _determineType(String packageName, String text) {
-    if (text.contains('berhasil top up') || text.contains('top up berhasil') || text.contains('isi saldo')) {
-      return 'top_up';
-    }
-    if (text.contains('berhasil transfer') || text.contains('melakukan transfer') || text.contains('kirim uang') || text.contains('pembayaran') || text.contains('bayar')) {
-      return 'expense';
-    }
-    if (text.contains('menerima') || text.contains('masuk') || text.contains('terima dana') || text.contains('uang masuk')) {
+    // Income keywords
+    if (text.contains('menerima') ||
+        text.contains('uang masuk') ||
+        text.contains('transfer masuk') ||
+        text.contains('terima dana') ||
+        text.contains('kamu menerima') ||
+        text.contains('dana masuk') ||
+        text.contains('top up berhasil') ||
+        text.contains('berhasil top up') ||
+        text.contains('isi saldo berhasil')) {
       return 'income';
     }
-    return 'expense'; // Default fallback
+
+    // Expense / payment keywords
+    if (text.contains('pembayaran') ||
+        text.contains('bayar') ||
+        text.contains('melakukan transfer') ||
+        text.contains('berhasil transfer') ||
+        text.contains('kirim uang') ||
+        text.contains('dikurangi') ||
+        text.contains('terpotong') ||
+        text.contains('debit')) {
+      return 'expense';
+    }
+
+    return 'expense'; // Default
   }
 
-  String? _extractMerchant(String packageName, String title, String text) {
-    // Simple rule-based extraction for known patterns
+  // ─────────────────────────────────────────────────────────────────────────────
+  // Merchant Extraction — per app
+  // ─────────────────────────────────────────────────────────────────────────────
+  String? _extractMerchant(String packageName, String title, String text, String combinedText) {
+    // ── DANA ────────────────────────────────────────────────────────────────────
     if (packageName.contains('id.dana')) {
-      // DANA often says "Pembayaran RpX ke [Merchant] berhasil"
-      final regex = RegExp(r'ke\s+(.*?)\s+berhasil', caseSensitive: false);
-      final match = regex.firstMatch(text);
-      if (match != null) return match.group(1)?.trim();
+      // "Pembayaran Rp10.000 ke Tokopedia berhasil"
+      var m = RegExp(r'ke\s+(.+?)\s+berhasil', caseSensitive: false).firstMatch(text);
+      if (m != null) return m.group(1)?.trim();
+      // "Kamu membayar [Merchant] Rp..."
+      m = RegExp(r'membayar\s+(.+?)\s+rp', caseSensitive: false).firstMatch(text);
+      if (m != null) return m.group(1)?.trim();
     }
-    
+
+    // ── OVO ─────────────────────────────────────────────────────────────────────
     if (packageName.contains('ovo')) {
-      // OVO often says "Pembayaran di [Merchant] sebesar..."
-      final regex = RegExp(r'di\s+(.*?)\s+sebesar', caseSensitive: false);
-      final match = regex.firstMatch(text);
-      if (match != null) return match.group(1)?.trim();
+      // "Pembayaran di Indomaret sebesar Rp..."
+      var m = RegExp(r'di\s+(.+?)\s+sebesar', caseSensitive: false).firstMatch(text);
+      if (m != null) return m.group(1)?.trim();
+      // "Pembayaran OVO Cash ke Alfamart"
+      m = RegExp(r'(?:cash|points?)\s+ke\s+(.+?)(?:\s+(?:sebesar|senilai|rp)|$)', caseSensitive: false).firstMatch(text);
+      if (m != null) return m.group(1)?.trim();
     }
 
+    // ── GoPay / Gojek ────────────────────────────────────────────────────────────
     if (packageName.contains('gojek')) {
-      // GoPay often has "Gopay kamu terpotong RpX untuk [Merchant]"
-      final regex = RegExp(r'untuk\s+(.*?)\.', caseSensitive: false);
-      final match = regex.firstMatch(text);
-      if (match != null) return match.group(1)?.trim();
+      // "GoPay kamu terpotong Rp15.000 untuk Indomaret."
+      var m = RegExp(r'untuk\s+(.+?)(?:\.|$)', caseSensitive: false).firstMatch(text);
+      if (m != null) return m.group(1)?.trim();
+      // "Kamu membayar ke [Merchant]"
+      m = RegExp(r'ke\s+(.+?)(?:\s+(?:berhasil|rp)|$)', caseSensitive: false).firstMatch(text);
+      if (m != null) return m.group(1)?.trim();
     }
 
+    // ── ShopeePay ───────────────────────────────────────────────────────────────
+    if (packageName.contains('shopee')) {
+      // "Pembayaran ShopeePay ke [Merchant] sebesar Rp..."
+      var m = RegExp(r'(?:ke|kepada|di)\s+(.+?)\s+(?:sebesar|senilai|rp|berhasil)', caseSensitive: false).firstMatch(text);
+      if (m != null) return m.group(1)?.trim();
+      // "Kamu membayar Rp... di [Merchant]"
+      m = RegExp(r'di\s+(.+?)(?:\s+(?:berhasil|dengan|telah)|$)', caseSensitive: false).firstMatch(text);
+      if (m != null) return m.group(1)?.trim();
+      // "Transfer ShopeePay ke [Name] berhasil"
+      m = RegExp(r'(?:transfer|kirim)\s+(?:shopeepay\s+)?ke\s+(.+?)(?:\s+(?:berhasil|sebesar)|$)', caseSensitive: false).firstMatch(text);
+      if (m != null) return m.group(1)?.trim();
+    }
+
+    // ── BCA ─────────────────────────────────────────────────────────────────────
+    if (packageName.contains('bca')) {
+      var m = RegExp(r'(?:ke|kepada|toko)\s+(.+?)(?:\s+(?:berhasil|rp|sejumlah)|$)', caseSensitive: false).firstMatch(text);
+      if (m != null) return m.group(1)?.trim();
+    }
+
+    // ── Mandiri ──────────────────────────────────────────────────────────────────
+    if (packageName.contains('mandiri')) {
+      var m = RegExp(r'(?:ke|kepada)\s+(.+?)(?:\s+(?:berhasil|rp|sejumlah)|$)', caseSensitive: false).firstMatch(text);
+      if (m != null) return m.group(1)?.trim();
+    }
+
+    // ── SeaBank ──────────────────────────────────────────────────────────────────
     if (packageName.contains('seabank') || packageName.contains('bankbke')) {
-      // SeaBank Expense: "...transfer senilai RpX kepada [Merchant] pada..."
-      final regexExpense = RegExp(r'kepada\s+(.*?)\s+pada', caseSensitive: false);
-      final matchExpense = regexExpense.firstMatch(text);
-      if (matchExpense != null) return matchExpense.group(1)?.trim();
-
-      // SeaBank Income: "...transfer saldo senilai RpX dari [Merchant]."
-      final regexIncome = RegExp(r'dari\s+(.*?)\.', caseSensitive: false);
-      final matchIncome = regexIncome.firstMatch(text);
-      if (matchIncome != null) return matchIncome.group(1)?.trim();
+      // Expense: "transfer senilai RpX kepada [Name] pada..."
+      var m = RegExp(r'kepada\s+(.+?)\s+pada', caseSensitive: false).firstMatch(text);
+      if (m != null) return m.group(1)?.trim();
+      // Income: "menerima transfer saldo senilai RpX dari [Name]."
+      m = RegExp(r'dari\s+([A-Z][A-Z\s]+?)(?:\.|$)', caseSensitive: false).firstMatch(text);
+      if (m != null) return m.group(1)?.trim();
     }
 
-    return null; // Fallback, let user fill it in or ML model later
+    return null;
   }
 }
