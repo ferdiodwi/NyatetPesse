@@ -1,13 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:intl/intl.dart';
 import 'package:nyatet_pesse/core/theme/app_theme.dart';
 import 'package:nyatet_pesse/features/inbox/presentation/screens/inbox_screen.dart';
 import 'package:nyatet_pesse/features/inbox/presentation/providers/inbox_controller.dart';
+import 'package:nyatet_pesse/features/reports/presentation/providers/reports_provider.dart';
 import 'package:nyatet_pesse/features/settings/presentation/screens/settings_screen.dart';
+import 'package:nyatet_pesse/features/settings/presentation/providers/settings_provider.dart';
+import 'package:nyatet_pesse/features/transactions/presentation/providers/add_transaction_controller.dart';
 import 'package:nyatet_pesse/features/dashboard/presentation/widgets/account_horizontal_list.dart';
-import 'package:nyatet_pesse/features/dashboard/presentation/widgets/ai_detection_banner.dart';
+import 'package:nyatet_pesse/features/dashboard/presentation/widgets/battery_optimization_banner.dart';
 import 'package:nyatet_pesse/features/dashboard/presentation/widgets/balance_card.dart';
+import 'package:nyatet_pesse/features/dashboard/presentation/widgets/budget_pace_card.dart';
+import 'package:nyatet_pesse/features/dashboard/presentation/widgets/upcoming_bills_card.dart';
 import 'package:nyatet_pesse/features/dashboard/presentation/widgets/recent_transactions_list.dart';
 import 'package:nyatet_pesse/features/reports/presentation/widgets/budget_summary_widget.dart';
 
@@ -26,21 +30,23 @@ class HomeScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final pendingItems = ref.watch(pendingInboxProvider).valueOrNull ?? [];
     final unreadCount = pendingItems.length;
+    final userName = ref.watch(userNameProvider);
     final greeting = _getGreeting();
 
     return Scaffold(
-      backgroundColor: AppTheme.background,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: RefreshIndicator(
         onRefresh: () async {
           ref.invalidate(pendingInboxProvider);
-          await Future.delayed(const Duration(milliseconds: 600));
+          ref.invalidate(accountsStreamProvider);
+          await ref.read(reportsControllerProvider.notifier).loadData();
         },
         child: CustomScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
           slivers: [
             // ── Custom Header ─────────────────────────────────────────────
             SliverToBoxAdapter(
-              child: _buildHeader(context, ref, greeting, unreadCount),
+              child: _buildHeader(context, ref, greeting, unreadCount, userName),
             ),
 
             // ── Content ───────────────────────────────────────────────────
@@ -52,9 +58,13 @@ class HomeScreen extends ConsumerWidget {
                   SizedBox(height: 24),
                   AccountHorizontalList(),
                   SizedBox(height: 20),
-                  AiDetectionBanner(),
+                  BatteryOptimizationBanner(),
                   SizedBox(height: 20),
                   BudgetSummaryWidget(),
+                  SizedBox(height: 20),
+                  BudgetPaceCard(),
+                  SizedBox(height: 20),
+                  UpcomingBillsCard(),
                   SizedBox(height: 20),
                   RecentTransactionsList(),
                   SizedBox(height: 100),
@@ -67,9 +77,19 @@ class HomeScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildHeader(BuildContext context, WidgetRef ref, String greeting, int unreadCount) {
+  Widget _buildHeader(
+    BuildContext context,
+    WidgetRef ref,
+    String greeting,
+    int unreadCount,
+    String userName,
+  ) {
+    final hasName = userName.isNotEmpty;
+    final avatarLetter = hasName ? userName[0].toUpperCase() : 'N';
+    final displayName = hasName ? '$userName 👋' : 'Selamat datang 👋';
+
     return Container(
-      color: AppTheme.background,
+      color: Theme.of(context).scaffoldBackgroundColor,
       padding: EdgeInsets.fromLTRB(
         20,
         MediaQuery.of(context).padding.top + 16,
@@ -90,10 +110,10 @@ class HomeScreen extends ConsumerWidget {
               ),
               borderRadius: BorderRadius.circular(14),
             ),
-            child: const Center(
+            child: Center(
               child: Text(
-                'F',
-                style: TextStyle(
+                avatarLetter,
+                style: const TextStyle(
                   color: Colors.white,
                   fontSize: 18,
                   fontWeight: FontWeight.w700,
@@ -110,21 +130,22 @@ class HomeScreen extends ConsumerWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  greeting,
-                  style: const TextStyle(
+                  hasName ? greeting : 'NyatetPesse',
+                  style: TextStyle(
                     fontSize: 12,
-                    color: AppTheme.textSecondary,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
                     fontWeight: FontWeight.w400,
                   ),
                 ),
-                const Text(
-                  'Ferdio 👋',
+                Text(
+                  displayName,
                   style: TextStyle(
                     fontSize: 17,
                     fontWeight: FontWeight.w700,
-                    color: AppTheme.textPrimary,
+                    color: Theme.of(context).colorScheme.onSurface,
                     letterSpacing: -0.3,
                   ),
+                  overflow: TextOverflow.ellipsis,
                 ),
               ],
             ),
@@ -173,25 +194,37 @@ class _HeaderIconButton extends StatelessWidget {
         width: 40,
         height: 40,
         decoration: BoxDecoration(
-          color: AppTheme.surface,
+          color: Theme.of(context).colorScheme.surface,
           borderRadius: BorderRadius.circular(12),
           boxShadow: AppTheme.cardShadow,
         ),
         child: Stack(
           children: [
             Center(
-              child: Icon(icon, size: 20, color: AppTheme.textPrimary),
+              child: Icon(icon, size: 20, color: Theme.of(context).colorScheme.onSurface),
             ),
             if (badge > 0)
               Positioned(
-                top: 6,
-                right: 6,
+                top: 3,
+                right: 3,
                 child: Container(
-                  width: 8,
-                  height: 8,
-                  decoration: const BoxDecoration(
+                  constraints: const BoxConstraints(minWidth: 15, minHeight: 15),
+                  padding: const EdgeInsets.symmetric(horizontal: 3.5),
+                  decoration: BoxDecoration(
                     color: AppTheme.expense,
-                    shape: BoxShape.circle,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Theme.of(context).colorScheme.surface, width: 1.5),
+                  ),
+                  alignment: Alignment.center,
+                  child: Text(
+                    badge > 9 ? '9+' : '$badge',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 8.5,
+                      fontWeight: FontWeight.w700,
+                      height: 1.2,
+                    ),
+                    textAlign: TextAlign.center,
                   ),
                 ),
               ),

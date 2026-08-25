@@ -1,25 +1,365 @@
+import 'dart:io';
+
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:share_plus/share_plus.dart';
+
 import 'package:nyatet_pesse/core/theme/app_theme.dart';
+import 'package:nyatet_pesse/data/repositories/repository_providers.dart';
 import 'package:nyatet_pesse/features/categories/presentation/screens/categories_screen.dart';
+import 'package:nyatet_pesse/features/settings/presentation/providers/backup_provider.dart';
+import 'package:nyatet_pesse/features/settings/presentation/providers/settings_provider.dart';
 import 'package:nyatet_pesse/features/settings/presentation/screens/notification_settings_screen.dart';
 import 'package:nyatet_pesse/features/security/presentation/screens/security_settings_screen.dart';
 import 'package:nyatet_pesse/features/settings/presentation/providers/export_provider.dart';
 import 'package:nyatet_pesse/features/transactions/presentation/screens/recurring_transactions_screen.dart';
+import 'package:flutter/services.dart';
 import 'package:nyatet_pesse/notification/services/notification_service.dart';
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
 
+  void _showEditNameSheet(BuildContext context, WidgetRef ref) {
+    final controller = TextEditingController(text: ref.read(userNameProvider));
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Theme.of(context).colorScheme.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (sheetContext) => Padding(
+        padding: EdgeInsets.fromLTRB(
+          20, 20, 20,
+          MediaQuery.of(sheetContext).viewInsets.bottom + 24,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 40, height: 4,
+                margin: const EdgeInsets.only(bottom: 20),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.outline,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            Row(
+              children: [
+                Icon(Icons.person_rounded, color: Color(0xFF0EA5E9), size: 22),
+                SizedBox(width: 10),
+                Text(
+                  'Nama Pengguna',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                    color: Theme.of(context).colorScheme.onSurface,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: controller,
+              autofocus: true,
+              textCapitalization: TextCapitalization.words,
+              maxLength: 24,
+              decoration: const InputDecoration(
+                hintText: 'Contoh: Ferdio',
+                counterText: '',
+              ),
+              onSubmitted: (_) => _saveName(sheetContext, ref, controller),
+            ),
+            const SizedBox(height: 16),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: () => _saveName(sheetContext, ref, controller),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.primary,
+                  foregroundColor: Colors.white,
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                ),
+                child: const Text(
+                  'Simpan',
+                  style: TextStyle(fontWeight: FontWeight.w600),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _saveName(BuildContext sheetContext, WidgetRef ref, TextEditingController controller) {
+    ref.read(userNameProvider.notifier).setName(controller.text);
+    Navigator.pop(sheetContext);
+  }
+
+  String _themeLabel(ThemeModeSetting mode) {
+    switch (mode) {
+      case ThemeModeSetting.system:
+        return 'Ikuti sistem';
+      case ThemeModeSetting.light:
+        return 'Terang';
+      case ThemeModeSetting.dark:
+        return 'Gelap';
+    }
+  }
+
+  // ── Backup ──────────────────────────────────────────────────────────────────
+  Future<String?> _askPassword(
+    BuildContext context,
+    String title,
+    String subtitle,
+  ) async {
+    final controller = TextEditingController();
+    return showDialog<String>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Text(title, style: const TextStyle(fontSize: 17)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(subtitle,
+                style: const TextStyle(fontSize: 13, height: 1.5)),
+            const SizedBox(height: 14),
+            TextField(
+              controller: controller,
+              obscureText: true,
+              autofocus: true,
+              decoration: const InputDecoration(
+                labelText: 'Password backup',
+                hintText: 'Minimal 8 karakter',
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Batal'),
+          ),
+          ValueListenableBuilder<TextEditingValue>(
+            valueListenable: controller,
+            builder: (_, value, __) => ElevatedButton(
+              onPressed: value.text.trim().length >= 8
+                  ? () => Navigator.pop(dialogContext, value.text.trim())
+                  : null,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.primary,
+                foregroundColor: Colors.white,
+                elevation: 0,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+              child: const Text('Lanjut'),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _startBackup(BuildContext context, WidgetRef ref) async {
+    final password = await _askPassword(
+      context,
+      'Password Backup',
+      'File backup akan dienkripsi dengan password ini. Jika lupa, backup tidak dapat dibuka kembali.',
+    );
+    if (password == null || !context.mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Membuat file backup...')),
+    );
+
+    final result = await ref.read(backupServiceProvider).createBackupFile(password);
+    if (!context.mounted) return;
+
+    if (!result.success) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Backup gagal: ${result.error}')),
+      );
+      return;
+    }
+
+    try {
+      await SharePlus.instance.share(
+        ShareParams(
+          files: [XFile(result.filePath!)],
+          text: 'Backup database NyatetPesse (terenkripsi)',
+        ),
+      );
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Gagal membagikan file: $e')),
+        );
+      }
+    }
+  }
+
+  // ── Restore ─────────────────────────────────────────────────────────────────
+  Future<void> _startRestore(BuildContext context, WidgetRef ref) async {
+    // Peringatan
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Row(
+          children: [
+            Icon(Icons.warning_amber_rounded, color: AppTheme.expense, size: 22),
+            SizedBox(width: 10),
+            Text('Pulihkan Backup?', style: TextStyle(fontSize: 17)),
+          ],
+        ),
+        content: const Text(
+          'Seluruh data saat ini akan DIGANTI dengan isi file backup. Lanjutkan?',
+          style: TextStyle(fontSize: 13.5, height: 1.5),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Batal'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppTheme.expense,
+              foregroundColor: Colors.white,
+              elevation: 0,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+            child: const Text('Pilih File'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !context.mounted) return;
+
+    final files = await FilePicker.pickFiles();
+    final path = files.isEmpty ? null : files.first.path;
+    if (path == null || !context.mounted) return;
+
+    final password = await _askPassword(
+      context,
+      'Password Backup',
+      'Masukkan password yang dipakai saat membuat file backup tersebut.',
+    );
+    if (password == null || !context.mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Memulihkan database...')),
+    );
+
+    // Tutup koneksi DB sebelum mengganti file.
+    await ref.read(databaseProvider).close();
+
+    final result = await ref
+        .read(backupServiceProvider)
+        .restoreFrom(File(path), password);
+    if (!context.mounted) return;
+
+    if (!result.success) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Restore gagal: ${result.error}')),
+      );
+      return;
+    }
+
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Row(
+          children: [
+            Icon(Icons.check_circle_rounded, color: AppTheme.income, size: 22),
+            SizedBox(width: 10),
+            Text('Restore Berhasil', style: TextStyle(fontSize: 17)),
+          ],
+        ),
+        content: const Text(
+          'Database berhasil dipulihkan. Aplikasi akan ditutup — buka kembali untuk memakai data yang dipulihkan.',
+          style: TextStyle(fontSize: 13.5, height: 1.5),
+        ),
+        actions: [
+          ElevatedButton(
+            onPressed: () => SystemNavigator.pop(),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppTheme.primary,
+              foregroundColor: Colors.white,
+              elevation: 0,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+            child: const Text('Tutup Aplikasi'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showThemeSheet(BuildContext context, WidgetRef ref) {
+    final current = ref.read(themeModeProvider);
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Theme.of(context).colorScheme.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (sheetContext) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(height: 12),
+            Container(
+              width: 40, height: 4,
+              decoration: BoxDecoration(
+                color: Theme.of(context).hintColor,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(height: 8),
+            ...ThemeModeSetting.values.map(
+              (mode) => RadioListTile<ThemeModeSetting>(
+                value: mode,
+                groupValue: current,
+                title: Text(_themeLabel(mode)),
+                activeColor: AppTheme.primary,
+                onChanged: (value) {
+                  if (value != null) {
+                    ref.read(themeModeProvider.notifier).setMode(value);
+                    Navigator.pop(sheetContext);
+                  }
+                },
+              ),
+            ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return Scaffold(
-      backgroundColor: AppTheme.background,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: CustomScrollView(
         slivers: [
           // ── App Bar ────────────────────────────────────────────────────
           SliverAppBar(
-            backgroundColor: AppTheme.background,
+            backgroundColor: Theme.of(context).scaffoldBackgroundColor,
             pinned: true,
             elevation: 0,
             scrolledUnderElevation: 0,
@@ -28,16 +368,16 @@ class SettingsScreen extends ConsumerWidget {
               child: Container(
                 margin: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: AppTheme.surface,
+                  color: Theme.of(context).colorScheme.surface,
                   borderRadius: BorderRadius.circular(10),
                   boxShadow: AppTheme.cardShadow,
                 ),
-                child: const Icon(Icons.arrow_back_ios_new_rounded, size: 16, color: AppTheme.textPrimary),
+                child: Icon(Icons.arrow_back_ios_new_rounded, size: 16, color: Theme.of(context).colorScheme.onSurface),
               ),
             ),
-            title: const Text(
+            title: Text(
               'Pengaturan',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: AppTheme.textPrimary, letterSpacing: -0.3),
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: Theme.of(context).colorScheme.onSurface, letterSpacing: -0.3),
             ),
           ),
 
@@ -46,6 +386,42 @@ class SettingsScreen extends ConsumerWidget {
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 40),
             sliver: SliverList(
               delegate: SliverChildListDelegate([
+                // Group 0: Akun
+                _SectionHeader(title: 'Akun'),
+                const SizedBox(height: 8),
+                _SettingsCard(
+                  items: [
+                    _SettingsItem(
+                      icon: Icons.person_rounded,
+                      iconColor: const Color(0xFF0EA5E9),
+                      title: 'Nama Pengguna',
+                      subtitle: ref.watch(userNameProvider).isEmpty
+                          ? 'Belum diatur — ketuk untuk mengisi'
+                          : ref.watch(userNameProvider),
+                      onTap: () => _showEditNameSheet(context, ref),
+                    ),
+                  ],
+                ),
+
+                const SizedBox(height: 24),
+
+                // Group 0.5: Tampilan
+                _SectionHeader(title: 'Tampilan'),
+                const SizedBox(height: 8),
+                _SettingsCard(
+                  items: [
+                    _SettingsItem(
+                      icon: Icons.dark_mode_rounded,
+                      iconColor: const Color(0xFF6366F1),
+                      title: 'Tema',
+                      subtitle: _themeLabel(ref.watch(themeModeProvider)),
+                      onTap: () => _showThemeSheet(context, ref),
+                    ),
+                  ],
+                ),
+
+                const SizedBox(height: 24),
+
                 // Group 1: Keamanan
                 _SectionHeader(title: 'Keamanan'),
                 const SizedBox(height: 8),
@@ -137,7 +513,7 @@ class SettingsScreen extends ConsumerWidget {
                       onTap: () => showModalBottomSheet(
                         context: context,
                         isScrollControlled: true,
-                        backgroundColor: Colors.white,
+                        backgroundColor: Theme.of(context).colorScheme.surface,
                         shape: const RoundedRectangleBorder(
                           borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
                         ),
@@ -149,13 +525,37 @@ class SettingsScreen extends ConsumerWidget {
                   ],
                 ),
 
+                const SizedBox(height: 24),
+
+                // Group 3.5: Backup & Pulihkan
+                _SectionHeader(title: 'Backup & Pulihkan'),
+                const SizedBox(height: 8),
+                _SettingsCard(
+                  items: [
+                    _SettingsItem(
+                      icon: Icons.backup_rounded,
+                      iconColor: const Color(0xFF0EA5E9),
+                      title: 'Backup Database',
+                      subtitle: 'File terenkripsi — simpan ke Drive/penyimpanan',
+                      onTap: () => _startBackup(context, ref),
+                    ),
+                    _SettingsItem(
+                      icon: Icons.restore_rounded,
+                      iconColor: const Color(0xFFF59E0B),
+                      title: 'Pulihkan dari Backup',
+                      subtitle: 'Ganti data saat ini dengan file backup',
+                      onTap: () => _startRestore(context, ref),
+                    ),
+                  ],
+                ),
+
                 const SizedBox(height: 40),
 
                 // Version info
                 Center(
                   child: Text(
                     'NyatetPesse • v1.0.0',
-                    style: TextStyle(fontSize: 12, color: AppTheme.textHint),
+                    style: TextStyle(fontSize: 12, color: Theme.of(context).hintColor),
                   ),
                 ),
               ]),
@@ -175,10 +575,10 @@ class _SectionHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     return Text(
       title.toUpperCase(),
-      style: const TextStyle(
+      style: TextStyle(
         fontSize: 11,
         fontWeight: FontWeight.w600,
-        color: AppTheme.textSecondary,
+        color: Theme.of(context).colorScheme.onSurfaceVariant,
         letterSpacing: 0.8,
       ),
     );
@@ -193,7 +593,7 @@ class _SettingsCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: AppTheme.surface,
+        color: Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(20),
         boxShadow: AppTheme.cardShadow,
       ),
@@ -204,7 +604,7 @@ class _SettingsCard extends StatelessWidget {
         separatorBuilder: (_, __) => Divider(
           height: 1,
           indent: 66,
-          color: AppTheme.borderColor.withValues(alpha: 0.5),
+          color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.5),
         ),
         itemBuilder: (_, i) => _buildItem(context, items[i]),
       ),
@@ -235,21 +635,21 @@ class _SettingsCard extends StatelessWidget {
                 children: [
                   Text(
                     item.title,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 14.5,
                       fontWeight: FontWeight.w600,
-                      color: AppTheme.textPrimary,
+                      color: Theme.of(context).colorScheme.onSurface,
                     ),
                   ),
                   const SizedBox(height: 2),
                   Text(
                     item.subtitle,
-                    style: const TextStyle(fontSize: 12, color: AppTheme.textSecondary),
+                    style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant),
                   ),
                 ],
               ),
             ),
-            Icon(Icons.chevron_right_rounded, size: 18, color: AppTheme.textHint),
+            Icon(Icons.chevron_right_rounded, size: 18, color: Theme.of(context).hintColor),
           ],
         ),
       ),
@@ -358,7 +758,7 @@ class _GeminiApiKeySheetState extends State<_GeminiApiKeySheet> {
               width: 40, height: 4,
               margin: const EdgeInsets.only(bottom: 20),
               decoration: BoxDecoration(
-                color: AppTheme.borderColor,
+                color: Theme.of(context).colorScheme.outline,
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
@@ -376,25 +776,25 @@ class _GeminiApiKeySheetState extends State<_GeminiApiKeySheet> {
                 child: const Icon(Icons.auto_awesome_rounded, color: Color(0xFFEC4899), size: 20),
               ),
               const SizedBox(width: 12),
-              const Column(
+              Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Gemini AI Parser', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: AppTheme.textPrimary)),
-                  Text('Google AI Studio API Key', style: TextStyle(fontSize: 12, color: AppTheme.textSecondary)),
+                  Text('Gemini AI Parser', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Theme.of(context).colorScheme.onSurface)),
+                  Text('Google AI Studio API Key', style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant)),
                 ],
               ),
               const Spacer(),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
-                  color: _hasKey ? AppTheme.income.withValues(alpha: 0.1) : AppTheme.borderColor,
+                  color: _hasKey ? AppTheme.income.withValues(alpha: 0.1) : Theme.of(context).colorScheme.outline,
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text(
                   _hasKey ? 'Aktif' : 'Tidak Aktif',
                   style: TextStyle(
                     fontSize: 11, fontWeight: FontWeight.w600,
-                    color: _hasKey ? AppTheme.income : AppTheme.textSecondary,
+                    color: _hasKey ? AppTheme.income : Theme.of(context).colorScheme.onSurfaceVariant,
                   ),
                 ),
               ),

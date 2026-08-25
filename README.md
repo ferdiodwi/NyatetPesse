@@ -21,10 +21,10 @@ Punya banyak rekening bank, e-wallet, dan uang tunai bikin pencatatan keuangan m
 NyatetPesse menangkap transaksi dari tiga sumber utama:
 
 - 🔔 **Notification Listener** — membaca notifikasi m-banking/e-wallet secara real-time
-- 📸 **OCR Struk & Bukti Pembayaran** — cukup foto struk atau screenshot, sistem yang mengekstrak datanya
+- 📸 **OCR Struk & Bukti Pembayaran** — cukup foto struk atau screenshot, sistem yang mengekstrak datanya (ML Kit on-device)
 - ✍️ **Input Manual** — sebagai fallback kapan pun otomatisasi tidak tersedia
 
-Semua diproses dan diklasifikasikan menggunakan **Local AI Model (on-device)** — **tidak ada data finansial yang dikirim ke server pihak ketiga**.
+Pemrosesan memakai **arsitektur hybrid**: rule engine regex berjalan **100% lokal dan offline** sebagai jalur utama. Opsional, pengguna dapat mengisi API key Gemini pribadi di Pengaturan agar notifikasi yang gagal dikenali rule engine diparsing oleh AI cloud (*opt-in* — tanpa API key, tidak ada data yang keluar dari perangkat).
 
 ---
 
@@ -35,7 +35,7 @@ Semua diproses dan diklasifikasikan menggunakan **Local AI Model (on-device)** �
 | 🔄 **Deteksi Transaksi Otomatis** | Menangkap & mengekstrak transaksi dari notifikasi m-banking/e-wallet |
 | 🧾 **Scan Struk (OCR)** | Ekstraksi merchant, item, dan total dari foto struk fisik |
 | 📲 **Scan Bukti Pembayaran** | Ekstraksi status, nominal, dan referensi dari screenshot pembayaran |
-| 🤖 **Klasifikasi Local AI** | Kategori transaksi otomatis via model TFLite/LiteRT, 100% offline |
+| 🧠 **Ekstraksi Hybrid** | Rule engine regex offline sebagai jalur utama + AI cloud opsional (opt-in) untuk kasus sulit |
 | 📥 **Transaction Inbox** | Antrian human-in-the-loop untuk konfirmasi transaksi berconfidence rendah |
 | 🧭 **Duplicate Detection** | Mendeteksi kemungkinan transaksi tercatat dua kali lintas sumber |
 | 💸 **Transfer & Top Up** | Perpindahan dana antar akun tanpa dihitung sebagai pengeluaran ganda |
@@ -72,7 +72,9 @@ NyatetPesse berjalan **sepenuhnya on-device** — tanpa backend wajib, tanpa clo
         │                  │                  │
         └──────────────────┼──────────────────┘
                            ▼
-                 Rule Engine + Local AI Model
+             Rule Engine (offline, default)
+                           ▼
+              AI Cloud opsional (opt-in)*
                            ▼
                  Structured Transaction
                            ▼
@@ -84,11 +86,14 @@ NyatetPesse berjalan **sepenuhnya on-device** — tanpa backend wajib, tanpa clo
               │                         │
               └────────────┬────────────┘
                            ▼
-                      Local Database
+                Local Database (terenkripsi)
                            ▼
           ┌────────────────┼────────────────┐
           ▼                ▼                ▼
       Dashboard        Statistics      Reconciliation
+
+  * Gemini API hanya dipakai jika pengguna mengisi API key sendiri;
+    tanpa itu seluruh alur tetap berjalan offline.
 ```
 
 **Prinsip desain utama:**
@@ -98,7 +103,7 @@ NyatetPesse berjalan **sepenuhnya on-device** — tanpa backend wajib, tanpa clo
 - **Human-in-the-loop** — semua hasil otomatis dapat dikoreksi pengguna
 - **Fail-safe** — kegagalan satu sumber (mis. Notification Listener) tidak menghentikan pencatatan
 
-Detail arsitektur lengkap, skema database, dan spesifikasi model ML tersedia di [`docs/SRS.md`](docs/SRS.md).
+Detail arsitektur lengkap, skema database, dan spesifikasi model ML tersedia di [`SRS.md`](SRS.md).
 
 ---
 
@@ -110,10 +115,10 @@ Detail arsitektur lengkap, skema database, dan spesifikasi model ML tersedia di 
 | State Management | Riverpod / BLoC |
 | Android Native | Kotlin — `NotificationListenerService` |
 | Bridge | MethodChannel / EventChannel |
-| Database | SQLite via Drift, dienkripsi dengan SQLCipher |
+| Database | SQLite via Drift, terenkripsi dengan SQLite3MultipleCiphers (kunci di secure storage) |
 | OCR | Google ML Kit Text Recognition (on-device) |
-| Machine Learning | TensorFlow Lite / LiteRT |
-| Training Pipeline | Python + scikit-learn |
+| Machine Learning | TensorFlow Lite / LiteRT *(roadmap — belum aktif)*; fallback parsing Gemini API opsional |
+| Training Pipeline | Python + scikit-learn *(roadmap)* |
 | Keamanan | Android Keystore, BiometricPrompt API |
 | Grafik | fl_chart / syncfusion_flutter_charts |
 | Backup (opsional) | Google Drive API |
@@ -157,33 +162,35 @@ flutter build apk --release
 
 ```text
 lib/
-├── core/            # constants, errors, security, utils
+├── core/            # services (gemini, ocr, fingerprint), theme
 ├── features/        # dashboard, transactions, accounts, categories,
-│                     # budget, statistics, scanner, inbox,
-│                     # reconciliation, settings
-├── data/            # database, repositories, models
-├── domain/          # entities, usecases
-├── ml/              # model, preprocessing, inference
-├── ocr/             # services, parsers
-└── notification/    # services
+│                    # inbox, reports, security, settings
+├── data/            # database (drift), repositories
+└── notification/    # notification listener service (pipeline utama)
 
 android/
-└── app/src/main/kotlin/notification/
-    └── TransactionNotificationListener.kt
+└── app/src/main/kotlin/com/example/nyatet_pesse/
+    ├── MainActivity.kt
+    └── NyatetNotificationListener.kt
+
+tool/                # skrip utilitas dev (mis. pad_image.dart)
+test/                # unit tests (parser, enkripsi DB, filter notifikasi)
+UI/                  # mockup desain HTML
 ```
 
 ---
 
 ## 🗺️ Roadmap
 
-- [ ] **Phase 1 — Foundation**: setup project, skema database, manajemen akun & kategori, input manual, dashboard dasar, PIN lock
-- [ ] **Phase 2 — Notification Automation**: `NotificationListenerService`, parser notifikasi, duplicate detection, Transaction Inbox
-- [ ] **Phase 3 — OCR**: scan struk & bukti pembayaran, image preprocessing
+- [x] **Phase 1 — Foundation**: setup project, skema database, manajemen akun & kategori, input manual, dashboard dasar, biometrik lock ✅
+- [x] **Phase 2 — Notification Automation**: `NotificationListenerService`, parser notifikasi (rule engine + fallback AI), Transaction Inbox ✅
+- [x] **Phase 3 — OCR**: scan struk & bukti pembayaran via ML Kit + Gemini vision opsional ✅
+- [x] **Phase 5 — Privacy & Security (parsial)**: enkripsi database via SQLite3MultipleCiphers, biometrik, secure storage ✅ *(encrypted backup belum)*
+- [x] **Phase 6 — Financial Intelligence (parsial)**: budgeting, statistik, recurring transaction, export CSV ✅ *(rekonsiliasi UI belum)*
 - [ ] **Phase 4 — Local AI**: dataset & training, konversi TFLite, confidence score, offline inference
-- [ ] **Phase 5 — Privacy & Security**: enkripsi database, private storage, encrypted backup
-- [ ] **Phase 6 — Financial Intelligence**: budgeting, statistik lengkap, rekonsiliasi, recurring transaction, export/import
+- [ ] **Phase 6 — lanjutan**: rekonsiliasi saldo (UI), import, encrypted backup
 
-Detail lengkap tiap fase & mapping ke functional requirement ada di [`docs/SRS.md`](docs/SRS.md#19-prioritas-pengembangan).
+Detail lengkap tiap fase & mapping ke functional requirement ada di [`SRS.md`](SRS.md#19-prioritas-pengembangan).
 
 ---
 
@@ -191,12 +198,12 @@ Detail lengkap tiap fase & mapping ke functional requirement ada di [`docs/SRS.m
 
 NyatetPesse dirancang dengan prinsip **privacy by design**:
 
-- Seluruh inferensi AI berjalan **on-device** — tidak ada transaksi, foto struk, atau notifikasi yang dikirim ke server pihak ketiga secara default.
-- Database dienkripsi (SQLCipher), foto struk disimpan di private app storage.
-- Aplikasi dilindungi PIN/biometrik dengan auto-lock.
-- Backup (opsional) dienkripsi sebelum disimpan ke penyimpanan eksternal/cloud.
+- Jalur pemrosesan utama (rule engine regex, OCR ML Kit) berjalan **on-device** — tanpa koneksi internet.
+- Database dienkripsi menggunakan **SQLite3MultipleCiphers** (via build hooks) dengan kunci 256-bit acak yang disimpan di `flutter_secure_storage`; migrasi otomatis dari database plaintext lama.
+- Aplikasi dilindungi autentikasi biometrik dengan auto-lock dan grace period.
+- **AI cloud bersifat opt-in**: jika pengguna mengisi API key Gemini sendiri di Pengaturan, teks notifikasi/struk yang gagal dikenali rule engine akan dikirim ke Google API untuk diparsing. Tanpa API key, tidak ada data yang keluar dari perangkat.
 
-Lihat bagian [Security Threats & Mitigasi](docs/SRS.md#12-security-threats-dan-mitigasi) di SRS untuk detail ancaman dan mitigasinya.
+Lihat bagian [Security Threats & Mitigasi](SRS.md#12-security-threats-dan-mitigasi) di SRS untuk detail ancaman dan mitigasinya.
 
 ---
 
@@ -204,7 +211,7 @@ Lihat bagian [Security Threats & Mitigasi](docs/SRS.md#12-security-threats-dan-m
 
 Spesifikasi kebutuhan lengkap (SRS) — mencakup functional & non-functional requirements, skema database, use case, error handling, ML spec, testing plan, hingga roadmap — tersedia di:
 
-📘 [`docs/SRS.md`](docs/SRS.md)
+📘 [`SRS.md`](SRS.md)
 
 ---
 
@@ -218,7 +225,7 @@ Kontribusi sangat terbuka! Untuk berkontribusi:
 4. Push ke branch (`git push origin fitur/nama-fitur`)
 5. Buka Pull Request
 
-Mohon pastikan perubahan sejalan dengan prinsip desain di [SRS](docs/SRS.md#18-prinsip-desain-final) — khususnya **local-first** dan **privacy-first**.
+Mohon pastikan perubahan sejalan dengan prinsip desain di [SRS](SRS.md#18-prinsip-desain-final) — khususnya **local-first** dan **privacy-first**.
 
 ---
 

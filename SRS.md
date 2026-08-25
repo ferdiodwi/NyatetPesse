@@ -1,19 +1,25 @@
 # Software Requirements Specification (SRS)
 
 ## NyatetPesse
-**Aplikasi Manajemen Keuangan Pribadi Berbasis Flutter dengan Local AI**
+**Aplikasi Manajemen Keuangan Pribadi Berbasis Flutter dengan Pemrosesan Hybrid (Rule Engine Lokal + AI Opsional)**
 
 ---
 
-**Versi:** 2.0.0 (Merged)
-**Tanggal:** 12 Agustus 2026
+**Versi:** 2.1.0 (Merged)
+**Tanggal:** 12 Agustus 2026 (rev. 25 Agustus 2026)
 **Status:** Draft Baseline
 **Platform:** Android
 **Framework:** Flutter
 **Bahasa:** Dart + Kotlin (Android Native)
-**Database:** SQLite/Drift
-**AI:** Machine Learning lokal/offline
+**Database:** SQLite/Drift, terenkripsi (SQLite3MultipleCiphers)
+**AI:** Rule engine lokal; klasifikasi ML lokal (TFLite) = roadmap; Gemini Cloud API = opsional opt-in
 **OCR:** On-device OCR
+
+> **⚠️ Catatan Status Implementasi (Agustus 2026):**
+> Dokumen ini adalah spesifikasi target. Kondisi implementasi saat ini:
+> - ✅ **Aktif**: rule engine regex lokal (`TransactionParser`), OCR ML Kit on-device, database terenkripsi via build hooks `sqlite3mc`, biometrik lock, CSV export.
+> - ☁️ **Opsional opt-in**: fallback parsing via Gemini API — hanya aktif jika pengguna mengisi API key pribadi di Pengaturan; teks notifikasi/struk akan dikirim ke Google hanya setelah opt-in.
+> - 🔜 **Roadmap**: model TFLite/LiteRT on-device untuk klasifikasi kategori (lihat Roadmap Phase 4).
 
 ---
 
@@ -53,15 +59,15 @@ Dokumen ini mendeskripsikan kebutuhan perangkat lunak untuk aplikasi **NyatetPes
 
 Pengguna yang memiliki beberapa rekening bank, e-wallet, QRIS, dan uang tunai sering mengalami kesulitan menjaga pencatatan keuangan tetap lengkap. Pencatatan manual membutuhkan waktu dan berpotensi menyebabkan transaksi terlewat atau tercatat dua kali.
 
-NyatetPesse dirancang untuk mengurangi pekerjaan tersebut dengan menggabungkan beberapa sumber transaksi dalam satu ledger keuangan. Notification Listener digunakan sebagai sumber transaksi digital, OCR digunakan untuk membaca struk dan bukti pembayaran, sedangkan Local AI digunakan untuk membantu klasifikasi transaksi.
+NyatetPesse dirancang untuk mengurangi pekerjaan tersebut dengan menggabungkan beberapa sumber transaksi dalam satu ledger keuangan. Notification Listener digunakan sebagai sumber transaksi digital, OCR digunakan untuk membaca struk dan bukti pembayaran, sedangkan rule engine lokal (dan AI opsional) digunakan untuk membantu ekstraksi dan klasifikasi transaksi.
 
 ### 1.3 Tujuan Sistem
 
 1. Menyatukan transaksi dari berbagai sumber keuangan dalam satu aplikasi.
 2. Mengotomatisasi pencatatan transaksi dan mengurangi input manual.
-3. Mengklasifikasikan transaksi secara otomatis menggunakan Local AI.
+3. Mengklasifikasikan transaksi secara otomatis menggunakan rule engine lokal (dengan klasifikasi ML on-device sebagai roadmap).
 4. Memungkinkan pemindaian struk dan bukti pembayaran (OCR).
-5. Menjaga privasi data keuangan dengan pemrosesan 100% on-device.
+5. Menjaga privasi data keuangan: pemrosesan default berjalan on-device, dan AI cloud hanya digunakan secara eksplisit opt-in oleh pengguna.
 6. Mendeteksi transaksi duplikat lintas sumber.
 7. Memberikan mekanisme konfirmasi (human-in-the-loop) terhadap hasil otomatis.
 8. Menyediakan dashboard, statistik, dan budgeting.
@@ -73,11 +79,11 @@ NyatetPesse dirancang untuk mengurangi pekerjaan tersebut dengan menggabungkan b
 
 - **Notification Listener** — menangkap notifikasi push dari aplikasi m-banking dan e-wallet secara real-time.
 - **OCR (Optical Character Recognition)** — membaca teks dari foto struk fisik dan screenshot bukti pembayaran.
-- **Local AI Model** — mengklasifikasikan dan mengekstrak informasi transaksi secara offline menggunakan model TFLite/LiteRT.
+- **Rule Engine + AI** — mengekstrak informasi transaksi via rule regex lokal; klasifikasi TFLite/LiteRT on-device menyusul (roadmap), dengan fallback Gemini Cloud API yang bersifat opsional opt-in.
 - **Input Manual** — sebagai fallback ketika sumber otomatis tidak tersedia.
 - **Import data/mutasi** — sebagai mekanisme rekonsiliasi tambahan.
 
-Seluruh pemrosesan AI utama berjalan **on-device** tanpa mengirim data finansial ke layanan pihak ketiga secara default, menjamin privasi pengguna.
+Seluruh pemrosesan utama (rule engine, OCR, penyimpanan) berjalan **on-device**. Data finansial tidak dikirim ke layanan pihak ketiga **kecuali** pengguna secara eksplisit mengaktifkan fallback AI cloud (Gemini) dengan API key miliknya sendiri — lihat catatan status implementasi di bagian awal dokumen.
 
 #### Termasuk dalam Lingkup
 
@@ -151,7 +157,7 @@ Versi awal ditujukan untuk **satu pengguna individu**. Arsitektur dapat dikemban
 
 ### 2.1 Perspektif Produk
 
-NyatetPesse adalah aplikasi **standalone** yang berjalan sepenuhnya di perangkat Android. Tidak ada ketergantungan pada server backend eksternal atau layanan cloud AI untuk fungsi inti. Semua data disimpan secara lokal menggunakan SQLite/Drift, dan semua inferensi AI dilakukan menggunakan model TFLite yang tertanam dalam aplikasi.
+NyatetPesse adalah aplikasi **standalone** yang berjalan di perangkat Android tanpa server backend. Semua data disimpan secara lokal menggunakan SQLite/Drift yang terenkripsi. Ekstraksi transaksi utama dilakukan rule engine regex on-device; inferensi ML lokal (TFLite) merupakan roadmap, dan Gemini Cloud API hanya dipakai sebagai fallback opsional jika pengguna mengisinya dengan API key sendiri.
 
 ```
 ┌─────────────────────────────────────────────┐
@@ -649,16 +655,16 @@ Mata uang (default IDR), bahasa (default Bahasa Indonesia), format tanggal, tema
 | **Native Android** | Kotlin, `NotificationListenerService` |
 | **Bridge Flutter-Native** | MethodChannel / EventChannel |
 | **OCR** | Google ML Kit Text Recognition (on-device) |
-| **Local AI** | TensorFlow Lite / LiteRT |
+| **Local AI** | TensorFlow Lite / LiteRT *(roadmap — belum terimplementasi)* |
 | **Training** | Python, scikit-learn (baseline) |
 | **Database** | SQLite via Drift (Dart ORM) |
-| **Enkripsi DB** | SQLCipher |
+| **Enkripsi DB** | SQLite3MultipleCiphers via build hooks `sqlite3mc` (✅ terimplementasi), kunci 256-bit di flutter_secure_storage |
 | **Keamanan** | Android Keystore, BiometricPrompt API |
 | **Gambar** | camera, image_picker (Flutter packages) |
 | **Grafik** | fl_chart / syncfusion_flutter_charts |
 | **Backup** | Google Drive API (opsional) |
 | **Backend** | Tidak wajib untuk MVP |
-| **Cloud AI** | Tidak wajib |
+| **Cloud AI** | Opsional — Gemini API sebagai fallback parsing, aktif hanya jika pengguna mengisi API key sendiri (opt-in) |
 
 ### 6.4 Arsitektur Layer Aplikasi
 
@@ -680,14 +686,19 @@ Mata uang (default IDR), bahasa (default Bahasa Indonesia), format tanggal, tema
 
 ### 6.5 Arsitektur Local AI Model (Hybrid)
 
+> **Status:** Diagram ini menggambarkan arsitektur target. Saat ini "AI Classifier"
+> diisi oleh Rule Engine lokal; fallback Gemini Cloud dipakai bila rule gagal dan
+> pengguna opt-in. Klasifikasi TFLite on-device menyusul di Phase 4.
+
 ```
 INPUT TEXT
 (Teks notifikasi / hasil OCR)
-         │
-         ↓
+          │
+          ↓
 ┌─────────────────┐     ┌───────────────────┐
 │   Rule Engine    │     │   AI Classifier   │
-│   (Regex)        │     │   (TFLite)        │
+│   (Regex) ✅     │     │  (TFLite — roadmap│
+│                   │     │   / Gemini ops.)  │
 │                   │     │                   │
 │ - Nominal         │     │ - Kategori        │
 │ - Tanggal         │     │ - Tipe Transaksi  │

@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:nyatet_pesse/core/theme/app_theme.dart';
 import 'package:nyatet_pesse/features/security/presentation/providers/security_provider.dart';
+import 'package:nyatet_pesse/features/settings/presentation/providers/settings_provider.dart';
 
 class AppLockScreen extends ConsumerStatefulWidget {
   final Widget child;
@@ -22,16 +24,39 @@ class _AppLockScreenState extends ConsumerState<AppLockScreen>
   static const int _pinLength = 6;
   static const _primary = Color(0xFF000666);
 
+  String _greetingFor(String userName) {
+    if (userName.isEmpty) return 'Selamat Datang Kembali';
+    return 'Selamat Datang Kembali, $userName';
+  }
+
+  Widget _buildSplash(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      body: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Image.asset('assets/images/icon_baru.png', width: 88, height: 88),
+            const SizedBox(height: 16),
+            const Text(
+              'NyatetPesse',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.w700,
+                color: AppTheme.textPrimary,
+                letterSpacing: -0.4,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      final s = ref.read(securityControllerProvider);
-      if (s.isBiometricEnabled && s.isBiometricSupported) {
-        _tryBiometric();
-      }
-    });
   }
 
   @override
@@ -114,11 +139,29 @@ class _AppLockScreenState extends ConsumerState<AppLockScreen>
 
   @override
   Widget build(BuildContext context) {
+    // Cold-start biometrik: picu tepat saat init selesai (bukan
+    // postFrameCallback yang jalan sebelum init selesai).
+    ref.listen<SecurityState>(securityControllerProvider, (prev, next) {
+      final justInitialized = (prev?.isInitialized ?? false) == false && next.isInitialized;
+      if (justInitialized &&
+          next.isAppLocked &&
+          next.isBiometricEnabled &&
+          next.isBiometricSupported) {
+        _tryBiometric();
+      }
+    });
+
     final s = ref.watch(securityControllerProvider);
+
+    // Selama sesi belum dicek, JANGAN render child sama sekali —
+    // tampilkan splash agar dashboard tidak bocor satu frame pun.
+    if (!s.isInitialized) {
+      return _buildSplash(context);
+    }
     if (!s.isAppLocked) return widget.child;
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(
         child: Column(
           children: [
@@ -158,11 +201,11 @@ class _AppLockScreenState extends ConsumerState<AppLockScreen>
             const SizedBox(height: 32),
 
             // ── Greeting ─────────────────────────────────────────
-            const Text(
-              'Selamat Datang Kembali, Ferdio',
+            Text(
+              _greetingFor(ref.watch(userNameProvider)),
               style: TextStyle(
                 fontSize: 14,
-                color: Color(0xFF666666),
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
               ),
             ),
 
@@ -181,12 +224,14 @@ class _AppLockScreenState extends ConsumerState<AppLockScreen>
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     color: _hasError
-                        ? Colors.red
+                        ? Theme.of(context).colorScheme.error
                         : filled
                             ? _primary
                             : Colors.transparent,
                     border: Border.all(
-                      color: _hasError ? Colors.red : const Color(0xFFAAAAAA),
+                      color: _hasError
+                          ? Theme.of(context).colorScheme.error
+                          : Theme.of(context).colorScheme.outline,
                       width: 1.5,
                     ),
                   ),
@@ -254,7 +299,7 @@ class _AppLockScreenState extends ConsumerState<AppLockScreen>
 
               // Backspace (kanan)
               _actionButton(
-                child: const Icon(Icons.backspace_rounded, size: 22, color: Color(0xFF444444)),
+                child: Icon(Icons.backspace_rounded, size: 22, color: Theme.of(context).colorScheme.onSurfaceVariant),
                 onTap: _onDelete,
                 transparent: true,
               ),
@@ -327,8 +372,8 @@ class _PinButtonState extends State<_PinButton> {
           color: widget.transparent
               ? Colors.transparent
               : _pressed
-                  ? const Color(0xFFDDDDDD)
-                  : const Color(0xFFF0F0F0),
+                  ? Theme.of(context).colorScheme.outline
+                  : Theme.of(context).colorScheme.surfaceContainerHighest,
         ),
         child: widget.child,
       ),

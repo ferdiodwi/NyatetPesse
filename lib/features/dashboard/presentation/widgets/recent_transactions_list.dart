@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:nyatet_pesse/core/widgets/error_retry_widget.dart';
 import 'package:intl/intl.dart';
 import 'package:nyatet_pesse/core/theme/app_theme.dart';
 import 'package:nyatet_pesse/data/repositories/repository_providers.dart';
@@ -20,12 +21,12 @@ class RecentTransactionsList extends ConsumerWidget {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            const Text(
+            Text(
               'Transaksi Terakhir',
               style: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.w600,
-                color: AppTheme.textPrimary,
+                color: Theme.of(context).colorScheme.onSurface,
                 letterSpacing: -0.2,
               ),
             ),
@@ -52,7 +53,10 @@ class RecentTransactionsList extends ConsumerWidget {
               return const _LoadingSkeleton();
             }
             if (snapshot.hasError) {
-              return const SizedBox.shrink();
+              return ErrorRetryWidget(
+                message: 'Gagal memuat transaksi',
+                onRetry: () => ref.invalidate(accountsStreamProvider),
+              );
             }
 
             final transactions = snapshot.data ?? [];
@@ -62,12 +66,15 @@ class RecentTransactionsList extends ConsumerWidget {
 
             return accountsAsync.when(
               loading: () => const _LoadingSkeleton(),
-              error: (e, st) => const SizedBox.shrink(),
+              error: (e, st) => ErrorRetryWidget(
+                message: 'Gagal memuat transaksi',
+                onRetry: () => ref.invalidate(accountsStreamProvider),
+              ),
               data: (accounts) {
                 final accountMap = {for (var a in accounts) a.id: a};
                 return Container(
                   decoration: BoxDecoration(
-                    color: AppTheme.surface,
+                    color: Theme.of(context).colorScheme.surface,
                     borderRadius: BorderRadius.circular(20),
                     boxShadow: AppTheme.cardShadow,
                   ),
@@ -78,7 +85,7 @@ class RecentTransactionsList extends ConsumerWidget {
                     separatorBuilder: (_, __) => Divider(
                       height: 1,
                       indent: 68,
-                      color: AppTheme.borderColor.withValues(alpha: 0.5),
+                      color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.5),
                     ),
                     itemBuilder: (context, index) {
                       final t = transactions[index];
@@ -151,19 +158,19 @@ class _TransactionTile extends StatelessWidget {
               children: [
                 Text(
                   t.merchant ?? (isIncome ? 'Pemasukan' : (isExpense ? 'Pengeluaran' : 'Transfer')),
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 14.5,
                     fontWeight: FontWeight.w600,
-                    color: AppTheme.textPrimary,
+                    color: Theme.of(context).colorScheme.onSurface,
                   ),
                   overflow: TextOverflow.ellipsis,
                 ),
                 const SizedBox(height: 3),
                 Text(
                   '$accountName • ${timeFormat.format(t.transactionDate)}',
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 12,
-                    color: AppTheme.textSecondary,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
                   ),
                 ),
               ],
@@ -176,7 +183,7 @@ class _TransactionTile extends StatelessWidget {
             style: TextStyle(
               fontSize: 14.5,
               fontWeight: FontWeight.w600,
-              color: isIncome ? AppTheme.income : (isExpense ? AppTheme.expense : AppTheme.textPrimary),
+              color: isIncome ? AppTheme.income : (isExpense ? AppTheme.expense : Theme.of(context).colorScheme.onSurface),
             ),
           ),
         ],
@@ -193,7 +200,7 @@ class _LoadingSkeleton extends StatelessWidget {
     return Container(
       height: 200,
       decoration: BoxDecoration(
-        color: AppTheme.surface,
+        color: Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(20),
       ),
       child: const Center(
@@ -209,26 +216,26 @@ class _EmptyState extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 40),
       decoration: BoxDecoration(
-        color: AppTheme.surface,
+        color: Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(20),
         boxShadow: AppTheme.cardShadow,
       ),
       child: Column(
         children: [
-          Icon(Icons.receipt_long_outlined, size: 48, color: AppTheme.textHint),
+          Icon(Icons.receipt_long_outlined, size: 48, color: Theme.of(context).hintColor),
           const SizedBox(height: 12),
-          const Text(
+          Text(
             'Belum ada transaksi',
             style: TextStyle(
               fontSize: 14,
-              color: AppTheme.textSecondary,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
               fontWeight: FontWeight.w500,
             ),
           ),
           const SizedBox(height: 4),
-          const Text(
+          Text(
             'Tap + untuk mencatat transaksi pertama',
-            style: TextStyle(fontSize: 12, color: AppTheme.textHint),
+            style: TextStyle(fontSize: 12, color: Theme.of(context).hintColor),
           ),
         ],
       ),

@@ -1,32 +1,16 @@
 import 'package:nyatet_pesse/features/inbox/domain/models/parsed_transaction.dart';
 
 class TransactionParser {
-  /// Parses the raw notification text into a ParsedTransaction using Rule-Based Regex.
-  /// Returns null if the notification is not a valid transaction (e.g. promos, OTPs).
+  /// Parses the raw notification text into a ParsedTransaction using Rule-Based
+  /// Regex. Returns null if the notification is not a valid transaction
+  /// (e.g. promos, OTPs).
+  ///
+  /// Pemilihan paket yang diizinkan dilakukan oleh pemanggil
+  /// (NotificationService) berdasarkan pengaturan pengguna.
   ParsedTransaction? parseNotification(String packageName, String title, String text) {
     final lowerTitle = title.toLowerCase();
     final lowerText = text.toLowerCase();
     final combinedText = '$lowerTitle $lowerText';
-
-    // Whitelist allowed financial/e-wallet apps
-    final allowedPackages = [
-      'id.dana',
-      'ovo.id',
-      'com.gojek.app',
-      'com.shopee.id',
-      'com.bca',
-      'com.bankmandiri',
-      'seabank',
-      'bankbke',
-    ];
-    bool isAllowed = false;
-    for (final pkg in allowedPackages) {
-      if (packageName.toLowerCase().contains(pkg)) {
-        isAllowed = true;
-        break;
-      }
-    }
-    if (!isAllowed) return null;
 
     // Filter out non-transactional notifications
     final isOtp = combinedText.contains('otp') ||

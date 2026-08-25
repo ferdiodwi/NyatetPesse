@@ -10,6 +10,19 @@ final recurringTransactionsProvider = StreamProvider<List<RecurringTransaction>>
       .watch();
 });
 
+/// Tagihan rutin aktif yang jatuh tempo dalam 7 hari ke depan.
+final upcomingBillsProvider = StreamProvider<List<RecurringTransaction>>((ref) {
+  final db = ref.watch(databaseProvider);
+  final now = DateTime.now();
+  final until = DateTime(now.year, now.month, now.day)
+      .add(const Duration(days: 8))
+      .subtract(const Duration(milliseconds: 1));
+  return (db.select(db.recurringTransactions)
+        ..where((t) => t.isActive.equals(true) & t.nextDate.isBetweenValues(now, until))
+        ..orderBy([(t) => OrderingTerm.asc(t.nextDate)]))
+      .watch();
+});
+
 class RecurringController extends StateNotifier<bool> {
   final AppDatabase _db;
 

@@ -2,10 +2,10 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
-import 'package:drift/drift.dart' show Value;
 import 'package:nyatet_pesse/core/theme/app_theme.dart';
 import 'package:nyatet_pesse/data/database/app_database.dart';
 import 'package:nyatet_pesse/features/inbox/domain/models/parsed_transaction.dart';
+import 'package:nyatet_pesse/features/inbox/domain/services/account_matcher.dart';
 import 'package:nyatet_pesse/features/inbox/presentation/providers/inbox_controller.dart';
 import 'package:nyatet_pesse/data/repositories/repository_providers.dart';
 
@@ -48,7 +48,7 @@ class InboxItemCard extends ConsumerWidget {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
       decoration: BoxDecoration(
-        color: AppTheme.surface,
+        color: Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(20),
         boxShadow: AppTheme.cardShadow,
       ),
@@ -76,15 +76,15 @@ class InboxItemCard extends ConsumerWidget {
                     children: [
                       Text(
                         sourceLabel,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.w700,
-                          color: AppTheme.textPrimary,
+                          color: Theme.of(context).colorScheme.onSurface,
                         ),
                       ),
                       Text(
                         DateFormat('dd MMM, HH:mm').format(item.detectedAt),
-                        style: const TextStyle(fontSize: 11.5, color: AppTheme.textSecondary),
+                        style: TextStyle(fontSize: 11.5, color: Theme.of(context).colorScheme.onSurfaceVariant),
                       ),
                     ],
                   ),
@@ -113,7 +113,7 @@ class InboxItemCard extends ConsumerWidget {
           ),
 
           const SizedBox(height: 12),
-          Divider(height: 1, color: AppTheme.borderColor.withValues(alpha: 0.5)),
+          Divider(height: 1, color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.5)),
           const SizedBox(height: 12),
 
           // ── Transaction detail ───────────────────────────────────────────
@@ -126,14 +126,14 @@ class InboxItemCard extends ConsumerWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text('Merchant', style: TextStyle(fontSize: 11, color: AppTheme.textSecondary)),
+                        Text('Merchant', style: TextStyle(fontSize: 11, color: Theme.of(context).colorScheme.onSurfaceVariant)),
                         const SizedBox(height: 2),
                         Text(
                           parsed.merchant ?? '—',
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 14.5,
                             fontWeight: FontWeight.w600,
-                            color: AppTheme.textPrimary,
+                            color: Theme.of(context).colorScheme.onSurface,
                           ),
                           overflow: TextOverflow.ellipsis,
                         ),
@@ -143,7 +143,7 @@ class InboxItemCard extends ConsumerWidget {
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
-                      const Text('Nominal', style: TextStyle(fontSize: 11, color: AppTheme.textSecondary)),
+                      Text('Nominal', style: TextStyle(fontSize: 11, color: Theme.of(context).colorScheme.onSurfaceVariant)),
                       const SizedBox(height: 2),
                       Text(
                         currencyFormat.format(parsed.amount),
@@ -168,7 +168,7 @@ class InboxItemCard extends ConsumerWidget {
                     item.rawText,
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontSize: 13, color: AppTheme.textPrimary, height: 1.4),
+                    style: TextStyle(fontSize: 13, color: Theme.of(context).colorScheme.onSurface, height: 1.4),
                   ),
                   const SizedBox(height: 6),
                   Row(
@@ -186,7 +186,7 @@ class InboxItemCard extends ConsumerWidget {
             ),
 
           const SizedBox(height: 16),
-          Divider(height: 1, color: AppTheme.borderColor.withValues(alpha: 0.5)),
+          Divider(height: 1, color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.5)),
 
           // ── Action buttons ───────────────────────────────────────────────
           Padding(
@@ -218,16 +218,74 @@ class InboxItemCard extends ConsumerWidget {
                     onPressed: () async {
                       final controller = ref.read(inboxControllerProvider.notifier);
                       final accounts = await ref.read(accountRepositoryProvider).watchAllAccounts().first;
-                      final matchedAccountId = await _findOrCreateAccountId(context, ref, accounts, item.sourceApp);
+                      final match = await AccountMatcher.findOrCreate(
+                        ref.read(accountRepositoryProvider),
+                        accounts,
+                        item.sourceApp,
+                      );
+                      final matchedAccountId = match.accountId;
+                      if (match.created && context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('Akun ${match.createdName} belum ada. Sistem membuat otomatis!')),
+                        );
+                      }
 
                       if (matchedAccountId != 0 && context.mounted) {
-                        controller.confirmTransaction(
+                        final result = await controller.confirmTransaction(
                           item,
                           accountId: matchedAccountId,
                           amount: parsed?.amount ?? 0,
                           type: parsed?.type ?? 'expense',
                           merchant: parsed?.merchant,
                         );
+
+                        // Deteksi duplikat → konfirmasi pengguna.
+                        if (result.isDuplicate && context.mounted) {
+                          final forceSave = await showDialog<bool>(
+                            context: context,
+                            builder: (dialogContext) => AlertDialog(
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                              title: const Row(
+                                children: [
+                                  Icon(Icons.copy_all_rounded, color: Colors.orange, size: 22),
+                                  SizedBox(width: 10),
+                                  Text('Kemungkinan Duplikat', style: TextStyle(fontSize: 17)),
+                                ],
+                              ),
+                              content: Text(
+                                'Ada ${result.duplicateCount} transaksi serupa (nominal & akun sama, ±1 hari) sudah tercatat. Simpan tetap?',
+                                style: const TextStyle(fontSize: 14, height: 1.5),
+                              ),
+                              actions: [
+                                TextButton(
+                                  onPressed: () => Navigator.pop(dialogContext, false),
+                                  child: const Text('Batal'),
+                                ),
+                                ElevatedButton(
+                                  onPressed: () => Navigator.pop(dialogContext, true),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: AppTheme.primary,
+                                    foregroundColor: Colors.white,
+                                    elevation: 0,
+                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                  ),
+                                  child: const Text('Simpan Tetap'),
+                                ),
+                              ],
+                            ),
+                          );
+
+                          if (forceSave == true) {
+                            await controller.confirmTransaction(
+                              item,
+                              accountId: matchedAccountId,
+                              amount: parsed?.amount ?? 0,
+                              type: parsed?.type ?? 'expense',
+                              merchant: parsed?.merchant,
+                              force: true,
+                            );
+                          }
+                        }
                       } else if (context.mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(content: Text('Anda belum memiliki Akun/Dompet sama sekali!')),
@@ -259,61 +317,5 @@ class InboxItemCard extends ConsumerWidget {
     );
   }
 
-  Future<int> _findOrCreateAccountId(BuildContext context, WidgetRef ref, List<Account> accounts, String? sourceApp) async {
-    if (sourceApp == null) return accounts.isNotEmpty ? accounts.first.id : 0;
 
-    final sourceLower = sourceApp.toLowerCase();
-    List<String> keywords = [];
-    String? defaultName;
-
-    if (sourceLower.contains('seabank') || sourceLower.contains('bankbke')) {
-      keywords = ['seabank', 'sea bank', 'bke'];
-      defaultName = 'SeaBank';
-    } else if (sourceLower.contains('dana')) {
-      keywords = ['dana'];
-      defaultName = 'DANA';
-    } else if (sourceLower.contains('ovo')) {
-      keywords = ['ovo'];
-      defaultName = 'OVO';
-    } else if (sourceLower.contains('gojek')) {
-      keywords = ['gopay', 'go-pay', 'gojek'];
-      defaultName = 'GoPay';
-    } else if (sourceLower.contains('shopee')) {
-      keywords = ['shopeepay', 'shopee pay', 'spay'];
-      defaultName = 'ShopeePay';
-    } else if (sourceLower.contains('bca')) {
-      keywords = ['bca'];
-      defaultName = 'BCA';
-    } else if (sourceLower.contains('mandiri')) {
-      keywords = ['mandiri', 'livin'];
-      defaultName = 'Mandiri';
-    }
-
-    for (final keyword in keywords) {
-      for (final account in accounts) {
-        if (account.name.toLowerCase().contains(keyword)) return account.id;
-      }
-    }
-
-    if (defaultName != null) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Akun $defaultName belum ada. Sistem membuat otomatis!')),
-        );
-      }
-      final repo = ref.read(accountRepositoryProvider);
-      final newId = await repo.addAccount(
-        AccountsCompanion.insert(
-          name: defaultName,
-          type: 'E-WALLET',
-          currentBalance: Value(0.0),
-          createdAt: DateTime.now(),
-          updatedAt: Value(DateTime.now()),
-        ),
-      );
-      return newId;
-    }
-
-    return accounts.isNotEmpty ? accounts.first.id : 0;
-  }
 }

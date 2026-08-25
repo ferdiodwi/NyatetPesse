@@ -23,14 +23,6 @@ class _MainScreenState extends ConsumerState<MainScreen>
   late AnimationController _fabAnimController;
   late Animation<double> _fabAnim;
 
-  final List<Widget> _pages = [
-    const HomeScreen(),
-    const HistoryScreen(),
-    const ScannerScreen(),
-    const AccountsScreen(),
-    const StatsScreen(),
-  ];
-
   static const _navItems = [
     _NavItem(Icons.home_rounded, Icons.home_outlined, 'Beranda'),
     _NavItem(Icons.receipt_long_rounded, Icons.receipt_long_outlined, 'Riwayat'),
@@ -71,12 +63,19 @@ class _MainScreenState extends ConsumerState<MainScreen>
     final showFab = _currentIndex == 0 || _currentIndex == 1;
 
     return Scaffold(
-      body: AnimatedSwitcher(
-        duration: const Duration(milliseconds: 200),
-        child: KeyedSubtree(
-          key: ValueKey(_currentIndex),
-          child: _pages[_currentIndex],
-        ),
+      // IndexedStack menjaga state tiap tab tetap hidup (scroll, filter,
+      // input setengah jadi) — tidak di-rebuild saat pindah nav.
+      // KECUALI tab Scan: di-mount kondisional agar kamera tidak menyala
+      // terus di belakang layar (boros baterai + indikator privasi nyala).
+      body: IndexedStack(
+        index: _currentIndex,
+        children: [
+          const HomeScreen(),
+          const HistoryScreen(),
+          _currentIndex == 2 ? const ScannerScreen() : const SizedBox.shrink(),
+          const AccountsScreen(),
+          const StatsScreen(),
+        ],
       ),
       floatingActionButton: showFab
           ? ScaleTransition(
@@ -106,10 +105,10 @@ class _MainScreenState extends ConsumerState<MainScreen>
   Widget _buildBottomNav() {
     return Container(
       decoration: BoxDecoration(
-        color: AppTheme.surface,
+        color: Theme.of(context).colorScheme.surface,
         border: Border(
           top: BorderSide(
-            color: AppTheme.borderColor.withValues(alpha: 0.6),
+            color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.6),
             width: 0.5,
           ),
         ),
@@ -165,7 +164,7 @@ class _MainScreenState extends ConsumerState<MainScreen>
             child: Icon(
               isSelected ? item.activeIcon : item.inactiveIcon,
               size: 22,
-              color: isSelected ? AppTheme.primary : AppTheme.textHint,
+              color: isSelected ? AppTheme.primary : Theme.of(context).hintColor,
             ),
           ),
           const SizedBox(height: 3),
@@ -174,7 +173,7 @@ class _MainScreenState extends ConsumerState<MainScreen>
             style: TextStyle(
               fontSize: 10.5,
               fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
-              color: isSelected ? AppTheme.primary : AppTheme.textHint,
+              color: isSelected ? AppTheme.primary : Theme.of(context).hintColor,
             ),
             child: Text(item.label),
           ),
@@ -197,7 +196,7 @@ class _MainScreenState extends ConsumerState<MainScreen>
             width: 46,
             height: 46,
             decoration: BoxDecoration(
-              color: isSelected ? AppTheme.primary : const Color(0xFFF3F4F6),
+              color: isSelected ? AppTheme.primary : Theme.of(context).colorScheme.surfaceContainerHighest,
               borderRadius: BorderRadius.circular(14),
               boxShadow: isSelected
                   ? [
@@ -212,7 +211,7 @@ class _MainScreenState extends ConsumerState<MainScreen>
             child: Icon(
               Icons.qr_code_scanner_rounded,
               size: 22,
-              color: isSelected ? Colors.white : AppTheme.textHint,
+              color: isSelected ? Colors.white : Theme.of(context).hintColor,
             ),
           ),
           const SizedBox(height: 3),
@@ -221,7 +220,7 @@ class _MainScreenState extends ConsumerState<MainScreen>
             style: TextStyle(
               fontSize: 10.5,
               fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
-              color: isSelected ? AppTheme.primary : AppTheme.textHint,
+              color: isSelected ? AppTheme.primary : Theme.of(context).hintColor,
             ),
             child: const Text('Scan'),
           ),

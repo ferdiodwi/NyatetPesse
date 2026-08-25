@@ -4,6 +4,7 @@ import 'package:nyatet_pesse/data/repositories/account_repository.dart';
 import 'package:nyatet_pesse/data/repositories/category_repository.dart';
 import 'package:nyatet_pesse/data/repositories/transaction_repository.dart';
 import 'package:nyatet_pesse/data/repositories/inbox_repository.dart';
+import 'package:nyatet_pesse/data/repositories/reconciliation_repository.dart';
 import 'package:nyatet_pesse/data/repositories/reports_repository.dart';
 
 final databaseProvider = Provider<AppDatabase>((ref) {
@@ -34,4 +35,8 @@ final inboxRepositoryProvider = Provider<InboxRepository>((ref) {
 
 final reportsRepositoryProvider = Provider<ReportsRepository>((ref) {
   return ReportsRepository(ref.watch(databaseProvider));
+});
+
+final reconciliationRepositoryProvider = Provider<ReconciliationRepository>((ref) {
+  return ReconciliationRepository(ref.watch(databaseProvider));
 });

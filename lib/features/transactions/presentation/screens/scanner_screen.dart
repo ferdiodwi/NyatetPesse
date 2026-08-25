@@ -36,21 +36,35 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> with WidgetsBindi
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
-    _cameraController?.dispose();
+    _disposeCamera();
     _ocrService.dispose();
     super.dispose();
   }
 
+  /// Lepas kamera sepenuhnya — dipanggil saat tab ditinggalkan (widget
+  /// di-unmount oleh IndexedStack kondisional) dan saat app ke background.
+  /// Flag di-reset SEBELUM await agar UI tidak pernah merender preview
+  /// dengan controller yang sudah null/di-dispose (race condition).
+  Future<void> _disposeCamera() async {
+    final controller = _cameraController;
+    if (controller == null && !_isCameraInitialized) return;
+    _cameraController = null;
+    _isCameraInitialized = false;
+    if (mounted) setState(() {});
+    await controller?.dispose();
+    debugPrint('📷 Camera DISPOSED (released)');
+  }
+
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    final CameraController? cameraController = _cameraController;
+    final cameraController = _cameraController;
     if (cameraController == null || !cameraController.value.isInitialized) {
       return;
     }
 
     if (state == AppLifecycleState.inactive) {
-      cameraController.dispose();
-    } else if (state == AppLifecycleState.resumed) {
+      _disposeCamera();
+    } else if (state == AppLifecycleState.resumed && _isCameraPermissionGranted) {
       _initCamera(cameraController.description);
     }
   }
@@ -74,21 +88,30 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> with WidgetsBindi
   }
 
   Future<void> _initCamera(CameraDescription description) async {
-    _cameraController = CameraController(
+    // Hindari double-init: lepaskan controller lama bila ada.
+    await _disposeCamera();
+
+    final controller = CameraController(
       description,
       ResolutionPreset.high,
       enableAudio: false,
       imageFormatGroup: ImageFormatGroup.jpeg,
     );
+    _cameraController = controller;
 
     try {
-      await _cameraController!.initialize();
-      if (!mounted) return;
+      await controller.initialize();
+      if (!mounted) {
+        await controller.dispose();
+        return;
+      }
+      debugPrint('📷 Camera INITIALIZED');
       setState(() {
         _isCameraInitialized = true;
       });
     } catch (e) {
       debugPrint("Camera initialization error: $e");
+      _cameraController = null;
     }
   }
 

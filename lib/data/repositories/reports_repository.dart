@@ -34,7 +34,8 @@ class ReportsRepository {
     final query = _db.select(_db.transactions).join([
       innerJoin(_db.categories, _db.categories.id.equalsExp(_db.transactions.categoryId)),
     ])
-      ..where(_db.transactions.type.equals('EXPENSE') &
+      // case-insensitive: parser kirim 'expense', UI kirim 'EXPENSE'.
+      ..where(_db.transactions.type.lower().equals('expense') &
           _db.transactions.transactionDate.isBetweenValues(startDate, endDate) &
           _db.transactions.isConfirmed.equals(true))
       ..addColumns([amountSum])

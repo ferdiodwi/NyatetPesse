@@ -77,10 +77,6 @@ class _AddTransactionScreenState extends ConsumerState<AddTransactionScreen>
     super.dispose();
   }
 
-  _TxType get _currentTypeConfig {
-    final t = ref.read(transactionTypeProvider);
-    return _types.firstWhere((e) => e.key == t, orElse: () => _types.first);
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -492,7 +488,6 @@ class _AddTransactionScreenState extends ConsumerState<AddTransactionScreen>
     required String label,
     required String hint,
     int maxLines = 1,
-    bool isFirst = false,
     bool isLast = false,
   }) {
     return Padding(
@@ -672,7 +667,7 @@ class _AddTransactionScreenState extends ConsumerState<AddTransactionScreen>
   void _showPicker({required String title, required Widget child}) {
     showModalBottomSheet(
       context: context,
-      backgroundColor: Colors.white,
+      backgroundColor: Theme.of(context).colorScheme.surface,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:nyatet_pesse/core/theme/app_theme.dart';
+import 'package:nyatet_pesse/core/widgets/error_retry_widget.dart';
 import 'package:nyatet_pesse/data/database/app_database.dart';
 import 'package:nyatet_pesse/data/repositories/repository_providers.dart';
 import 'package:nyatet_pesse/features/transactions/presentation/providers/history_providers.dart';
@@ -13,17 +14,20 @@ class HistoryScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final filter = ref.watch(transactionFilterProvider);
+    final period = ref.watch(historyPeriodProvider);
+    final accountFilter = ref.watch(historyAccountFilterProvider);
     final transactionsAsync = ref.watch(transactionRepositoryProvider).watchAllTransactions();
     final accountsAsync = ref.watch(accountsStreamProvider);
     final currencyFormat = NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0);
+    final hasAdvancedFilter = period != HistoryPeriod.all || accountFilter != null;
 
     return Scaffold(
-      backgroundColor: AppTheme.background,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: Column(
         children: [
           // ── Custom Header ────────────────────────────────────────────────
           Container(
-            color: AppTheme.background,
+            color: Theme.of(context).scaffoldBackgroundColor,
             padding: EdgeInsets.fromLTRB(
               20,
               MediaQuery.of(context).padding.top + 16,
@@ -32,26 +36,40 @@ class HistoryScreen extends ConsumerWidget {
             ),
             child: Row(
               children: [
-                const Expanded(
+                Expanded(
                   child: Text(
                     'Riwayat',
                     style: TextStyle(
                       fontSize: 22,
                       fontWeight: FontWeight.w700,
-                      color: AppTheme.textPrimary,
+                      color: Theme.of(context).colorScheme.onSurface,
                       letterSpacing: -0.5,
                     ),
                   ),
                 ),
-                _IconBtn(icon: Icons.search_rounded, onTap: () {}),
+                _IconBtn(
+                  icon: Icons.search_rounded,
+                  onTap: () => showSearch(
+                    context: context,
+                    delegate: TransactionSearchDelegate(
+                      stream: transactionsAsync,
+                      accountsAsync: accountsAsync,
+                      currencyFormat: currencyFormat,
+                    ),
+                  ),
+                ),
                 const SizedBox(width: 8),
-                _IconBtn(icon: Icons.tune_rounded, onTap: () {}),
+                _IconBtn(
+                  icon: Icons.tune_rounded,
+                  badge: hasAdvancedFilter,
+                  onTap: () => _showAdvancedFilterSheet(context, ref, accountsAsync),
+                ),
               ],
             ),
           ),
 
           // ── Filter Tabs ──────────────────────────────────────────────────
-          _buildFilterTabs(ref, filter),
+          _buildFilterTabs(context, ref, filter),
 
           // ── List ─────────────────────────────────────────────────────────
           Expanded(
@@ -67,16 +85,44 @@ class HistoryScreen extends ConsumerWidget {
 
                 var transactions = snapshot.data ?? [];
 
-                // Apply filter
+                // ── Filter tipe (case-insensitive) ──────────────────────
                 if (filter != TransactionFilter.all) {
                   final filterType = filter == TransactionFilter.income
-                      ? 'INCOME'
-                      : (filter == TransactionFilter.expense ? 'EXPENSE' : 'TRANSFER');
-                  transactions = transactions.where((t) => t.type == filterType).toList();
+                      ? 'income'
+                      : (filter == TransactionFilter.expense ? 'expense' : 'transfer');
+                  transactions =
+                      transactions.where((t) => t.type.toLowerCase() == filterType).toList();
+                }
+
+                // ── Filter periode ──────────────────────────────────────
+                final now = DateTime.now();
+                DateTime? cutoff;
+                switch (period) {
+                  case HistoryPeriod.last7Days:
+                    cutoff = DateTime(now.year, now.month, now.day - 6);
+                    break;
+                  case HistoryPeriod.last30Days:
+                    cutoff = DateTime(now.year, now.month, now.day - 29);
+                    break;
+                  case HistoryPeriod.thisMonth:
+                    cutoff = DateTime(now.year, now.month, 1);
+                    break;
+                  case HistoryPeriod.all:
+                    break;
+                }
+                if (cutoff != null) {
+                  transactions =
+                      transactions.where((t) => !t.transactionDate.isBefore(cutoff!)).toList();
+                }
+
+                // ── Filter akun ─────────────────────────────────────────
+                if (accountFilter != null) {
+                  transactions =
+                      transactions.where((t) => t.accountId == accountFilter).toList();
                 }
 
                 if (transactions.isEmpty) {
-                  return _EmptyState(filter: filter);
+                  return _EmptyState(filter: filter, hasAdvancedFilter: hasAdvancedFilter);
                 }
 
                 // Group by date
@@ -89,21 +135,24 @@ class HistoryScreen extends ConsumerWidget {
 
                 return accountsAsync.when(
                   loading: () => const Center(child: CircularProgressIndicator(strokeWidth: 2)),
-                  error: (e, st) => const SizedBox.shrink(),
+                  error: (e, st) => ErrorRetryWidget(
+                    message: 'Gagal memuat akun',
+                    onRetry: () => ref.invalidate(accountsStreamProvider),
+                  ),
                   data: (accounts) {
                     final accountMap = {for (var a in accounts) a.id: a};
 
-                    // Summary totals
+                    // Summary totals (case-insensitive)
                     double totalIn = 0, totalOut = 0;
                     for (var t in transactions) {
-                      if (t.type == 'INCOME') totalIn += t.amount;
-                      if (t.type == 'EXPENSE') totalOut += t.amount;
+                      final type = t.type.toLowerCase();
+                      if (type == 'income') totalIn += t.amount;
+                      if (type == 'expense') totalOut += t.amount;
                     }
 
                     return RefreshIndicator(
                       onRefresh: () async {
                         ref.invalidate(accountsStreamProvider);
-                        await Future.delayed(const Duration(milliseconds: 600));
                       },
                       child: ListView.builder(
                         physics: const AlwaysScrollableScrollPhysics(),
@@ -122,7 +171,6 @@ class HistoryScreen extends ConsumerWidget {
                           final dateKey = sortedKeys[index - 1];
                           final dayTransactions = grouped[dateKey]!;
                           final parsedDate = DateTime.parse(dateKey);
-                          final now = DateTime.now();
 
                           String dateLabel;
                           if (parsedDate.year == now.year && parsedDate.month == now.month && parsedDate.day == now.day) {
@@ -140,17 +188,17 @@ class HistoryScreen extends ConsumerWidget {
                                 padding: const EdgeInsets.only(top: 20, bottom: 10),
                                 child: Text(
                                   dateLabel,
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     fontSize: 12,
                                     fontWeight: FontWeight.w600,
-                                    color: AppTheme.textSecondary,
+                                    color: Theme.of(context).colorScheme.onSurfaceVariant,
                                     letterSpacing: 0.2,
                                   ),
                                 ),
                               ),
                               Container(
                                 decoration: BoxDecoration(
-                                  color: AppTheme.surface,
+                                  color: Theme.of(context).colorScheme.surface,
                                   borderRadius: BorderRadius.circular(20),
                                   boxShadow: AppTheme.cardShadow,
                                 ),
@@ -161,15 +209,69 @@ class HistoryScreen extends ConsumerWidget {
                                   separatorBuilder: (_, i) => Divider(
                                     height: 1,
                                     indent: 68,
-                                    color: AppTheme.borderColor.withValues(alpha: 0.5),
+                                    color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.5),
                                   ),
                                   itemBuilder: (context, tIndex) {
                                     final t = dayTransactions[tIndex];
                                     final accountName = accountMap[t.accountId]?.name ?? '—';
-                                    return _HistoryTile(
-                                      transaction: t,
-                                      accountName: accountName,
-                                      currencyFormat: currencyFormat,
+                                    return Dismissible(
+                                      key: ValueKey(t.id),
+                                      direction: DismissDirection.endToStart,
+                                      background: Container(
+                                        alignment: Alignment.centerRight,
+                                        padding: const EdgeInsets.only(right: 20),
+                                        decoration: BoxDecoration(
+                                          color: AppTheme.expense.withValues(alpha: 0.12),
+                                          borderRadius: BorderRadius.circular(20),
+                                        ),
+                                        child: const Icon(Icons.delete_outline_rounded,
+                                            color: AppTheme.expense),
+                                      ),
+                                      confirmDismiss: (_) async {
+                                        return await showDialog<bool>(
+                                          context: context,
+                                          builder: (dialogContext) => AlertDialog(
+                                            shape: RoundedRectangleBorder(
+                                                borderRadius: BorderRadius.circular(20)),
+                                            title: const Text('Hapus transaksi?',
+                                                style: TextStyle(fontSize: 17)),
+                                            content: Text(
+                                              'Saldo akun akan disesuaikan otomatis.',
+                                              style: const TextStyle(fontSize: 13.5),
+                                            ),
+                                            actions: [
+                                              TextButton(
+                                                onPressed: () =>
+                                                    Navigator.pop(dialogContext, false),
+                                                child: const Text('Batal'),
+                                              ),
+                                              ElevatedButton(
+                                                onPressed: () =>
+                                                    Navigator.pop(dialogContext, true),
+                                                style: ElevatedButton.styleFrom(
+                                                  backgroundColor: AppTheme.expense,
+                                                  foregroundColor: Colors.white,
+                                                  elevation: 0,
+                                                  shape: RoundedRectangleBorder(
+                                                      borderRadius:
+                                                          BorderRadius.circular(12)),
+                                                ),
+                                                child: const Text('Hapus'),
+                                              ),
+                                            ],
+                                          ),
+                                        );
+                                      },
+                                      onDismissed: (_) async {
+                                        await ref
+                                            .read(transactionRepositoryProvider)
+                                            .deleteTransaction(t);
+                                      },
+                                      child: _HistoryTile(
+                                        transaction: t,
+                                        accountName: accountName,
+                                        currencyFormat: currencyFormat,
+                                      ),
                                     );
                                   },
                                 ),
@@ -189,7 +291,137 @@ class HistoryScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildFilterTabs(WidgetRef ref, TransactionFilter currentFilter) {
+  void _showAdvancedFilterSheet(
+    BuildContext context,
+    WidgetRef ref,
+    AsyncValue<List<Account>> accountsAsync,
+  ) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Theme.of(context).colorScheme.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (sheetContext) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).hintColor,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'Filter Lanjutan',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                  color: Theme.of(context).colorScheme.onSurface,
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'PERIODE',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  letterSpacing: 0.8,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Consumer(builder: (context, ref, _) {
+                final current = ref.watch(historyPeriodProvider);
+                return Wrap(
+                  spacing: 8,
+                  children: [
+                    (HistoryPeriod.all, 'Semua'),
+                    (HistoryPeriod.last7Days, '7 Hari'),
+                    (HistoryPeriod.last30Days, '30 Hari'),
+                    (HistoryPeriod.thisMonth, 'Bulan Ini'),
+                  ].map((item) {
+                    final selected = current == item.$1;
+                    return ChoiceChip(
+                      label: Text(item.$2),
+                      selected: selected,
+                      onSelected: (_) =>
+                          ref.read(historyPeriodProvider.notifier).state = item.$1,
+                    );
+                  }).toList(),
+                );
+              }),
+              const SizedBox(height: 16),
+              Text(
+                'AKUN',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  letterSpacing: 0.8,
+                ),
+              ),
+              const SizedBox(height: 8),
+              accountsAsync.when(
+                loading: () => const CircularProgressIndicator(strokeWidth: 2),
+                error: (e, _) => Text('Gagal memuat akun',
+                    style: TextStyle(
+                        fontSize: 12, color: Theme.of(context).colorScheme.error)),
+                data: (accounts) => Consumer(builder: (context, ref, _) {
+                  final current = ref.watch(historyAccountFilterProvider);
+                  return Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      ChoiceChip(
+                        label: const Text('Semua Akun'),
+                        selected: current == null,
+                        onSelected: (_) =>
+                            ref.read(historyAccountFilterProvider.notifier).state = null,
+                      ),
+                      ...accounts.map((a) => ChoiceChip(
+                            label: Text(a.name),
+                            selected: current == a.id,
+                            onSelected: (_) =>
+                                ref.read(historyAccountFilterProvider.notifier).state = a.id,
+                          )),
+                    ],
+                  );
+                }),
+              ),
+              const SizedBox(height: 20),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () => Navigator.pop(sheetContext),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppTheme.primary,
+                    foregroundColor: Colors.white,
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14)),
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                  ),
+                  child: const Text('Selesai',
+                      style: TextStyle(fontWeight: FontWeight.w600)),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFilterTabs(BuildContext context, WidgetRef ref, TransactionFilter currentFilter) {
     const filters = [
       (TransactionFilter.all, 'Semua'),
       (TransactionFilter.income, 'Masuk'),
@@ -201,7 +433,7 @@ class HistoryScreen extends ConsumerWidget {
       height: 36,
       margin: const EdgeInsets.fromLTRB(16, 0, 16, 12),
       decoration: BoxDecoration(
-        color: AppTheme.surface,
+        color: Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(12),
         boxShadow: AppTheme.cardShadow,
       ),
@@ -224,7 +456,7 @@ class HistoryScreen extends ConsumerWidget {
                   style: TextStyle(
                     fontSize: 12.5,
                     fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
-                    color: isSelected ? Colors.white : AppTheme.textSecondary,
+                    color: isSelected ? Colors.white : Theme.of(context).colorScheme.onSurfaceVariant,
                   ),
                 ),
               ),
@@ -232,6 +464,105 @@ class HistoryScreen extends ConsumerWidget {
           );
         }).toList(),
       ),
+    );
+  }
+}
+
+// ── Search ─────────────────────────────────────────────────────────────────────
+class TransactionSearchDelegate extends SearchDelegate<TransactionEntity?> {
+  final Stream<List<TransactionEntity>> stream;
+  final AsyncValue<List<Account>> accountsAsync;
+  final NumberFormat currencyFormat;
+
+  TransactionSearchDelegate({
+    required this.stream,
+    required this.accountsAsync,
+    required this.currencyFormat,
+  });
+
+  @override
+  String get searchFieldLabel => 'Cari merchant, catatan, atau nominal...';
+
+  @override
+  List<Widget>? buildActions(BuildContext context) {
+    return [
+      if (query.isNotEmpty)
+        IconButton(icon: const Icon(Icons.clear_rounded), onPressed: () => query = ''),
+    ];
+  }
+
+  @override
+  Widget? buildLeading(BuildContext context) {
+    return IconButton(
+      icon: const Icon(Icons.arrow_back_ios_new_rounded),
+      onPressed: () => close(context, null),
+    );
+  }
+
+  List<TransactionEntity> _filter(List<TransactionEntity> transactions, String q) {
+    return searchTransactions(transactions, q);
+  }
+
+  @override
+  Widget buildResults(BuildContext context) => _buildList(context);
+
+  @override
+  Widget buildSuggestions(BuildContext context) => _buildList(context);
+
+  Widget _buildList(BuildContext context) {
+    // Subscribe sendiri ke stream supaya hasil pencarian selalu data terbaru.
+    return StreamBuilder<List<TransactionEntity>>(
+      stream: stream,
+      builder: (context, snapshot) {
+        final results = _filter(snapshot.data ?? const [], query);
+
+        if (results.isEmpty) {
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.search_off_rounded, size: 64, color: Theme.of(context).hintColor),
+                const SizedBox(height: 12),
+                Text(
+                  query.isEmpty
+                      ? 'Mulai ketik untuk mencari transaksi'
+                      : 'Tidak ada hasil untuk "$query"',
+                  style: TextStyle(
+                      fontSize: 14, color: Theme.of(context).colorScheme.onSurfaceVariant),
+                ),
+              ],
+            ),
+          );
+        }
+
+        final accountMap = {
+          for (final a in (accountsAsync.valueOrNull ?? const <Account>[])) a.id: a,
+        };
+
+        return ListView.separated(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+          itemCount: results.length,
+          separatorBuilder: (_, __) => Divider(
+            height: 1,
+            indent: 68,
+            color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.5),
+          ),
+          itemBuilder: (context, i) {
+            final t = results[i];
+            return Container(
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.surface,
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: _HistoryTile(
+                transaction: t,
+                accountName: accountMap[t.accountId]?.name ?? '—',
+                currencyFormat: currencyFormat,
+              ),
+            );
+          },
+        );
+      },
     );
   }
 }
@@ -264,7 +595,7 @@ class _SummaryRow extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text('Total Masuk', style: TextStyle(fontSize: 11, color: AppTheme.textSecondary)),
+                        Text('Total Masuk', style: TextStyle(fontSize: 11, color: Theme.of(context).colorScheme.onSurfaceVariant)),
                         Text(
                           currencyFormat.format(totalIn),
                           style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppTheme.income),
@@ -293,7 +624,7 @@ class _SummaryRow extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text('Total Keluar', style: TextStyle(fontSize: 11, color: AppTheme.textSecondary)),
+                        Text('Total Keluar', style: TextStyle(fontSize: 11, color: Theme.of(context).colorScheme.onSurfaceVariant)),
                         Text(
                           currencyFormat.format(totalOut),
                           style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppTheme.expense),
@@ -322,8 +653,10 @@ class _HistoryTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = transaction;
-    final isIncome = t.type == 'INCOME';
-    final isExpense = t.type == 'EXPENSE';
+    // Case-insensitive: transaksi dari parser lowercase, dari UI uppercase.
+    final type = t.type.toLowerCase();
+    final isIncome = type == 'income';
+    final isExpense = type == 'expense';
 
     final Color typeColor;
     final IconData typeIcon;
@@ -362,17 +695,17 @@ class _HistoryTile extends StatelessWidget {
               children: [
                 Text(
                   t.merchant ?? (isIncome ? 'Pemasukan' : (isExpense ? 'Pengeluaran' : 'Transfer')),
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
-                    color: AppTheme.textPrimary,
+                    color: Theme.of(context).colorScheme.onSurface,
                   ),
                   overflow: TextOverflow.ellipsis,
                 ),
                 const SizedBox(height: 3),
                 Text(
                   '$accountName • ${DateFormat('HH:mm').format(t.transactionDate)}',
-                  style: const TextStyle(fontSize: 12, color: AppTheme.textSecondary),
+                  style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant),
                 ),
               ],
             ),
@@ -382,7 +715,7 @@ class _HistoryTile extends StatelessWidget {
             style: TextStyle(
               fontSize: 14,
               fontWeight: FontWeight.w600,
-              color: isIncome ? AppTheme.income : (isExpense ? AppTheme.expense : AppTheme.textPrimary),
+              color: isIncome ? AppTheme.income : (isExpense ? AppTheme.expense : Theme.of(context).colorScheme.onSurface),
             ),
           ),
         ],
@@ -394,7 +727,8 @@ class _HistoryTile extends StatelessWidget {
 class _IconBtn extends StatelessWidget {
   final IconData icon;
   final VoidCallback onTap;
-  const _IconBtn({required this.icon, required this.onTap});
+  final bool badge;
+  const _IconBtn({required this.icon, required this.onTap, this.badge = false});
 
   @override
   Widget build(BuildContext context) {
@@ -404,11 +738,28 @@ class _IconBtn extends StatelessWidget {
         width: 40,
         height: 40,
         decoration: BoxDecoration(
-          color: AppTheme.surface,
+          color: Theme.of(context).colorScheme.surface,
           borderRadius: BorderRadius.circular(12),
           boxShadow: AppTheme.cardShadow,
         ),
-        child: Icon(icon, size: 20, color: AppTheme.textPrimary),
+        child: Stack(
+          children: [
+            Center(child: Icon(icon, size: 20, color: Theme.of(context).colorScheme.onSurface)),
+            if (badge)
+              Positioned(
+                top: 7,
+                right: 7,
+                child: Container(
+                  width: 7,
+                  height: 7,
+                  decoration: const BoxDecoration(
+                    color: AppTheme.transfer,
+                    shape: BoxShape.circle,
+                  ),
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }
@@ -416,7 +767,8 @@ class _IconBtn extends StatelessWidget {
 
 class _EmptyState extends StatelessWidget {
   final TransactionFilter filter;
-  const _EmptyState({required this.filter});
+  final bool hasAdvancedFilter;
+  const _EmptyState({required this.filter, required this.hasAdvancedFilter});
 
   @override
   Widget build(BuildContext context) {
@@ -424,16 +776,18 @@ class _EmptyState extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.receipt_long_outlined, size: 64, color: AppTheme.textHint),
+          Icon(Icons.receipt_long_outlined, size: 64, color: Theme.of(context).hintColor),
           const SizedBox(height: 16),
-          const Text(
+          Text(
             'Tidak ada transaksi',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: AppTheme.textSecondary),
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Theme.of(context).colorScheme.onSurfaceVariant),
           ),
           const SizedBox(height: 6),
-          const Text(
-            'Coba ubah filter atau tambah transaksi baru',
-            style: TextStyle(fontSize: 13, color: AppTheme.textHint),
+          Text(
+            hasAdvancedFilter
+                ? 'Coba longgarkan filter periode/akun'
+                : 'Coba ubah filter atau tambah transaksi baru',
+            style: TextStyle(fontSize: 13, color: Theme.of(context).hintColor),
           ),
         ],
       ),

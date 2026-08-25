@@ -12,11 +12,17 @@ class SecurityState {
   final bool isBiometricEnabled;
   final bool isBiometricSupported; // apakah ada sidik jari di perangkat
 
+  /// False sampai _init() selesai membaca secure storage.
+  /// UI WAJIB menahan render child selama belum init agar dashboard
+  /// tidak bocor tampil sebelum sesi dicek (cold start).
+  final bool isInitialized;
+
   SecurityState({
     this.isAppLocked = false,
     this.hasPinSet = false,
     this.isBiometricEnabled = false,
     this.isBiometricSupported = false,
+    this.isInitialized = false,
   });
 
   SecurityState copyWith({
@@ -24,12 +30,14 @@ class SecurityState {
     bool? hasPinSet,
     bool? isBiometricEnabled,
     bool? isBiometricSupported,
+    bool? isInitialized,
   }) {
     return SecurityState(
       isAppLocked: isAppLocked ?? this.isAppLocked,
       hasPinSet: hasPinSet ?? this.hasPinSet,
       isBiometricEnabled: isBiometricEnabled ?? this.isBiometricEnabled,
       isBiometricSupported: isBiometricSupported ?? this.isBiometricSupported,
+      isInitialized: isInitialized ?? this.isInitialized,
     );
   }
 }
@@ -53,6 +61,7 @@ class SecurityController extends StateNotifier<SecurityState> {
       isAppLocked: hasPin,
       isBiometricEnabled: biometricStr == 'true',
       isBiometricSupported: isSupported,
+      isInitialized: true,
     );
   }
 

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:nyatet_pesse/core/widgets/error_retry_widget.dart';
 import 'package:nyatet_pesse/core/theme/app_theme.dart';
 import 'package:nyatet_pesse/features/dashboard/presentation/providers/dashboard_providers.dart';
 import 'package:nyatet_pesse/features/transactions/presentation/providers/add_transaction_controller.dart';
@@ -20,7 +21,10 @@ class BalanceCard extends ConsumerWidget {
 
     return accountsAsync.when(
       loading: () => const _CardSkeleton(),
-      error: (e, st) => const SizedBox.shrink(),
+      error: (e, st) => ErrorRetryWidget(
+        message: 'Gagal memuat saldo',
+        onRetry: () => ref.invalidate(accountsStreamProvider),
+      ),
       data: (accounts) {
         final totalBalance = accounts.fold<double>(0, (sum, acc) => sum + acc.currentBalance);
 

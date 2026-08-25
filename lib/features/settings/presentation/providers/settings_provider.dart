@@ -1,6 +1,79 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+final userNameProvider = StateNotifierProvider<UserNameNotifier, String>((ref) {
+  return UserNameNotifier();
+});
+
+class UserNameNotifier extends StateNotifier<String> {
+  UserNameNotifier() : super('') {
+    _load();
+  }
+
+  Future<void> _load() async {
+    final prefs = await SharedPreferences.getInstance();
+    state = prefs.getString('user_name') ?? '';
+  }
+
+  Future<void> setName(String name) async {
+    final trimmed = name.trim();
+    final prefs = await SharedPreferences.getInstance();
+    if (trimmed.isEmpty) {
+      await prefs.remove('user_name');
+    } else {
+      await prefs.setString('user_name', trimmed);
+    }
+    state = trimmed;
+  }
+}
+
+final themeModeProvider = StateNotifierProvider<ThemeModeNotifier, ThemeModeSetting>((ref) {
+  return ThemeModeNotifier();
+});
+
+enum ThemeModeSetting { system, light, dark }
+
+class ThemeModeNotifier extends StateNotifier<ThemeModeSetting> {
+  ThemeModeNotifier() : super(ThemeModeSetting.system) {
+    _load();
+  }
+
+  Future<void> _load() async {
+    final prefs = await SharedPreferences.getInstance();
+    final saved = prefs.getString('theme_mode');
+    state = ThemeModeSetting.values.firstWhere(
+      (m) => m.name == saved,
+      orElse: () => ThemeModeSetting.system,
+    );
+  }
+
+  Future<void> setMode(ThemeModeSetting mode) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('theme_mode', mode.name);
+    state = mode;
+  }
+}
+
+final onboardingCompleteProvider = FutureProvider<bool>((ref) async {
+  final prefs = await SharedPreferences.getInstance();
+  return prefs.getBool('onboarding_complete') ?? false;
+});
+
+final onboardingControllerProvider =
+    StateNotifierProvider<OnboardingController, bool>((ref) {
+  return OnboardingController();
+});
+
+class OnboardingController extends StateNotifier<bool> {
+  OnboardingController() : super(false);
+
+  Future<void> complete() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('onboarding_complete', true);
+    state = true;
+  }
+}
+
 final notificationSettingsProvider = StateNotifierProvider<NotificationSettingsNotifier, NotificationSettingsState>((ref) {
   return NotificationSettingsNotifier();
 });

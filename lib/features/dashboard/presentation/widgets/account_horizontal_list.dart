@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:nyatet_pesse/core/widgets/error_retry_widget.dart';
 import 'package:nyatet_pesse/features/dashboard/presentation/providers/dashboard_providers.dart';
 import 'package:nyatet_pesse/features/transactions/presentation/providers/add_transaction_controller.dart';
 import 'package:intl/intl.dart';
@@ -16,7 +17,10 @@ class AccountHorizontalList extends ConsumerWidget {
 
     return accountsAsync.when(
       loading: () => const Center(child: CircularProgressIndicator()),
-      error: (e, st) => Center(child: Text(e.toString())),
+      error: (e, st) => ErrorRetryWidget(
+        message: 'Gagal memuat akun',
+        onRetry: () => ref.invalidate(accountsStreamProvider),
+      ),
       data: (accounts) {
         if (accounts.isEmpty) {
           return const SizedBox.shrink();

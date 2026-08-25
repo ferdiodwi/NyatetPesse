@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:nyatet_pesse/core/theme/app_theme.dart';
+import 'package:nyatet_pesse/features/reconciliation/presentation/screens/reconciliation_screen.dart';
 import 'package:nyatet_pesse/data/database/app_database.dart';
 import 'package:nyatet_pesse/features/dashboard/presentation/providers/dashboard_providers.dart';
 import 'package:nyatet_pesse/features/transactions/presentation/providers/add_transaction_controller.dart';
@@ -17,7 +18,7 @@ class AccountsScreen extends ConsumerWidget {
     final currencyFormat = NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0);
 
     return Scaffold(
-      backgroundColor: AppTheme.background,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: accountsAsync.when(
         loading: () => const Center(child: CircularProgressIndicator(strokeWidth: 2)),
         error: (e, st) => Center(child: Text(e.toString())),
@@ -38,12 +39,12 @@ class AccountsScreen extends ConsumerWidget {
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text(
+                      Text(
                         'Semua Akun',
                         style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w600,
-                          color: AppTheme.textPrimary,
+                          color: Theme.of(context).colorScheme.onSurface,
                           letterSpacing: -0.2,
                         ),
                       ),
@@ -87,16 +88,16 @@ class AccountsScreen extends ConsumerWidget {
 
               // ── Account Cards ─────────────────────────────────────────────
               if (accounts.isEmpty)
-                const SliverFillRemaining(
+                SliverFillRemaining(
                   child: Center(
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(Icons.account_balance_wallet_outlined, size: 64, color: AppTheme.textHint),
+                        Icon(Icons.account_balance_wallet_outlined, size: 64, color: Theme.of(context).hintColor),
                         SizedBox(height: 16),
-                        Text('Belum ada akun', style: TextStyle(fontSize: 16, color: AppTheme.textSecondary, fontWeight: FontWeight.w500)),
+                        Text('Belum ada akun', style: TextStyle(fontSize: 16, color: Theme.of(context).colorScheme.onSurfaceVariant, fontWeight: FontWeight.w500)),
                         SizedBox(height: 6),
-                        Text('Tap "Tambah" untuk menambah akun pertama', style: TextStyle(fontSize: 13, color: AppTheme.textHint)),
+                        Text('Tap "Tambah" untuk menambah akun pertama', style: TextStyle(fontSize: 13, color: Theme.of(context).hintColor)),
                       ],
                     ),
                   ),
@@ -220,7 +221,7 @@ class _AccountCard extends StatelessWidget {
 
     return Container(
       decoration: BoxDecoration(
-        color: AppTheme.surface,
+        color: Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(18),
         boxShadow: AppTheme.cardShadow,
       ),
@@ -240,16 +241,19 @@ class _AccountCard extends StatelessWidget {
                 child: Icon(config.icon, size: 17, color: config.color),
               ),
               const Spacer(),
-              Icon(Icons.more_horiz_rounded, size: 18, color: AppTheme.textHint),
+              GestureDetector(
+                onTap: () => _showAccountMenu(context),
+                child: Icon(Icons.more_horiz_rounded, size: 18, color: Theme.of(context).hintColor),
+              ),
             ],
           ),
           const Spacer(),
           Text(
             account.name,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 13.5,
               fontWeight: FontWeight.w600,
-              color: AppTheme.textPrimary,
+              color: Theme.of(context).colorScheme.onSurface,
               letterSpacing: -0.1,
             ),
             maxLines: 1,
@@ -266,6 +270,50 @@ class _AccountCard extends StatelessWidget {
             overflow: TextOverflow.ellipsis,
           ),
         ],
+      ),
+    );
+  }
+
+  void _showAccountMenu(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Theme.of(context).colorScheme.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (sheetContext) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(height: 12),
+            Container(
+              width: 40, height: 4,
+              decoration: BoxDecoration(
+                color: Theme.of(context).hintColor,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            ListTile(
+              leading: const Icon(Icons.balance_rounded, color: AppTheme.primary),
+              title: const Text('Rekonsiliasi Saldo',
+                  style: TextStyle(fontSize: 14.5, fontWeight: FontWeight.w600)),
+              subtitle: Text(
+                'Cocokkan dengan saldo aktual ${account.name}',
+                style: const TextStyle(fontSize: 12),
+              ),
+              onTap: () {
+                Navigator.pop(sheetContext);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => ReconciliationScreen(initialAccount: account),
+                  ),
+                );
+              },
+            ),
+            const SizedBox(height: 8),
+          ],
+        ),
       ),
     );
   }

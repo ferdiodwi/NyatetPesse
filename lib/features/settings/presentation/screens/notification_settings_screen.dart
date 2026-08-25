@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:nyatet_pesse/core/services/notification_service.dart';
+import 'package:nyatet_pesse/notification/services/notification_service.dart';
 import 'package:nyatet_pesse/features/settings/presentation/providers/settings_provider.dart';
 
 class NotificationSettingsScreen extends ConsumerStatefulWidget {

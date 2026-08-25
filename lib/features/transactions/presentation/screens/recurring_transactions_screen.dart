@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:nyatet_pesse/features/transactions/presentation/providers/recurring_controller.dart';
-import 'package:nyatet_pesse/data/database/app_database.dart';
 import 'package:nyatet_pesse/features/transactions/presentation/providers/add_transaction_controller.dart';
 
 class RecurringTransactionsScreen extends ConsumerWidget {
